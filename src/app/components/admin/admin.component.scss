@@ -1,0 +1,90 @@
+.admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2.5rem;
+  background: #fff;
+  padding: 2rem;
+  border-radius: 20px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+  border-left: 6px solid #dc2626;
+  animation: slideInDown 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.admin-header h2 {
+  color: #991b1b;
+  font-size: 2.2rem;
+  font-weight: 700;
+  position: relative;
+}
+
+.table-section {
+  margin-top: 2rem;
+}
+.table-wrapper {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.07);
+  padding: 1.5rem;
+  overflow-x: auto;
+}
+.process-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.column-header {
+  font-weight: 600;
+  color: #991b1b;
+  font-size: 1.05rem;
+}
+.mono {
+  font-family: 'Fira Mono', 'Consolas', monospace;
+  color: #991b1b;
+}
+.badge {
+  display: inline-block;
+  padding: 0.25em 0.7em;
+  border-radius: 12px;
+  font-size: 0.95em;
+  font-weight: 500;
+  background: #f3f4f6;
+  color: #991b1b;
+  margin-right: 0.2em;
+}
+.badge-success {
+  background: #dcfce7;
+  color: #15803d;
+}
+.badge-error {
+  background: #fee2e2;
+  color: #dc2626;
+}
+.badge-warning {
+  background: #fef9c3;
+  color: #b45309;
+}
+.badge-info {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+.table-header-row th {
+  background: #f3f4f6;
+  border-bottom: 2px solid #991b1b;
+}
+.table-data-row td {
+  border-bottom: 1px solid #e5e7eb;
+}
+.table-paginator {
+  margin-top: 1rem;
+}
+.filter-section {
+  margin-bottom: 1.5rem;
+  display: flex;
+  justify-content: flex-end;
+}
+.search-filter {
+  min-width: 320px;
+}
+.mat-icon-button {
+  margin-left: 0.3em;
+}

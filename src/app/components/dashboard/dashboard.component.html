@@ -1,0 +1,356 @@
+<br /><br /><br />
+<div class="dashboard-container responsive-dashboard">
+  <!-- En-tête -->
+  <div class="processes-container fade-in">
+    <div class="processes-header slide-in-down">
+      <h2>Tableau de bord de supervision</h2>
+    </div>
+  </div>
+
+  <!-- Cartes de Statut -->
+  <div class="status-card-grid responsive-status-grid">
+    <!-- Carte Processus Actifs -->
+    <div class="status-card">
+      <div class="card-header">
+        <h6 class="card-title">Processus Actifs</h6>
+        <div class="card-icon primary-icon">
+          <span class="material-icons">play_circle</span>
+        </div>
+      </div>
+      <div class="card-value">
+        {{ getStatusCount("actif") }} / {{ processData?.totalProcesses || 0 }}
+        <span class="badge badge-success">
+          <span class="material-icons" style="font-size: 1rem">
+            {{ getTrendIcon("actif") }}
+          </span>
+          {{ getStatusPercentage("actif") }}%
+        </span>
+      </div>
+      <p class="card-description">
+        Actuellement
+        <span class="highlight">{{ getStatusCount("actif") }} actifs</span>
+        processus
+      </p>
+    </div>
+
+    <!-- Carte Processus Suspendus -->
+    <div class="status-card">
+      <div class="card-header">
+        <h6 class="card-title">Processus Suspendus</h6>
+        <div class="card-icon warning-icon">
+          <span class="material-icons">pause_circle</span>
+        </div>
+      </div>
+      <div class="card-value">
+        {{ getStatusCount("suspendu") }} /
+        {{ processData?.totalProcesses || 0 }}
+        <span class="badge badge-warning">
+          <span class="material-icons" style="font-size: 1rem">
+            {{ getTrendIcon("suspendu") }}
+          </span>
+          {{ getStatusPercentage("suspendu") }}%
+        </span>
+      </div>
+      <p class="card-description">
+        <span class="highlight"
+          >{{ getStatusCount("suspendu") }} processus</span
+        >
+        actuellement suspendus
+      </p>
+    </div>
+
+    <!-- Carte Processus Terminés -->
+    <div class="status-card">
+      <div class="card-header">
+        <h6 class="card-title">Processus Terminés</h6>
+        <div class="card-icon success-icon">
+          <span class="material-icons">check_circle</span>
+        </div>
+      </div>
+      <div class="card-value">
+        {{ getStatusCount("terminé") }} / {{ processData?.totalProcesses || 0 }}
+        <span class="badge badge-success">
+          <span class="material-icons" style="font-size: 1rem">
+            {{ getTrendIcon("terminé") }}
+          </span>
+          {{ getStatusPercentage("terminé") }}%
+        </span>
+      </div>
+      <p class="card-description">
+        <span class="highlight">{{ getStatusCount("terminé") }} processus</span>
+        terminés avec succès
+      </p>
+    </div>
+
+    <!-- Carte Autres Processus -->
+    <div class="status-card">
+      <div class="card-header">
+        <h6 class="card-title">Autres Processus</h6>
+        <div class="card-icon secondary-icon">
+          <span class="material-icons">category</span>
+        </div>
+      </div>
+      <div class="card-value">
+        {{ getStatusCount("autre") }} / {{ processData?.totalProcesses || 0 }}
+        <span class="badge badge-info">
+          <span class="material-icons" style="font-size: 1rem">
+            {{ getTrendIcon("autre") }}
+          </span>
+          {{ getStatusPercentage("autre") }}%
+        </span>
+      </div>
+      <p class="card-description">
+        <span class="highlight">{{ getStatusCount("autre") }} processus</span>
+        dans d'autres états
+      </p>
+    </div>
+  </div>
+
+  <!-- Dernière mise à jour -->
+  <div class="last-updated" *ngIf="lastUpdated">
+    Dernière mise à jour : {{ lastUpdated | date : "mediumTime" }}
+  </div>
+
+  <!-- Indicateur de chargement -->
+  <div class="loading-overlay" *ngIf="loading">
+    <mat-spinner diameter="50"></mat-spinner>
+    <p>Chargement des données en temps réel...</p>
+  </div>
+
+  <!-- Section Graphiques -->
+  <div class="charts-container responsive-charts">
+    <div class="chart-card">
+      <h3>Tendance des processus abandonnés</h3>
+      <div class="chart-placeholder">
+        <p>Graphique Grafana - Tendance temporelle</p>
+        <p class="chart-description">
+          Visualisation de l'évolution quotidienne des processus abandonnés
+        </p>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <h3>Impact sur la base de données</h3>
+      <div class="chart-placeholder">
+        <p>Graphique Grafana - Croissance BDD</p>
+        <p class="chart-description">
+          Impact des processus abandonnés sur la taille de la base de données
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section du bas -->
+  <div class="bottom-section responsive-bottom-section">
+    <!-- Tableau activité récente -->
+    <div class="recent-activity">
+      <h5>Activité récente des processus</h5>
+      <div class="table-container responsive-table-container">
+        <table class="activity-table">
+          <thead>
+            <tr>
+              <th>ID Processus</th>
+              <th>Nom du processus</th>
+              <th>Statut</th>
+              <th>Durée</th>
+              <th>Impact BDD</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><a href="#" class="process-id">#APS-2024-004</a></td>
+              <td>Demande de prêt personnel</td>
+              <td>
+                <span class="status-indicator status-active">
+                  <span class="status-dot"></span>
+                  Actif
+                </span>
+              </td>
+              <td>0h 45min</td>
+              <td>+34 Mo</td>
+            </tr>
+            <tr>
+              <td><a href="#" class="process-id">#APS-2024-005</a></td>
+              <td>Validation KYC client</td>
+              <td>
+                <span class="status-indicator status-abandoned">
+                  <span class="status-dot"></span>
+                  Abandonné
+                </span>
+              </td>
+              <td>8h 17min</td>
+              <td>+156 Mo</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Colonne de droite -->
+    <div class="responsive-right-column">
+      <!-- Section alertes -->
+      <div class="alert-section">
+        <div class="alert alert-critical">
+          <div class="alert-icon">
+            <span class="material-icons">warning</span>
+          </div>
+          <div class="alert-content">
+            <h4>Alerte critique</h4>
+            <p>
+              12 processus abandonnés dans les dernières 24h, causant une
+              croissance significative de la base de données.
+            </p>
+          </div>
+          <button class="alert-action">
+            <span class="material-icons">arrow_forward</span>
+          </button>
+        </div>
+
+        <div class="alert alert-warning">
+          <div class="alert-icon">
+            <span class="material-icons">info</span>
+          </div>
+          <div class="alert-content">
+            <h4>Avertissement performance</h4>
+            <p>
+              La table 'ACT_HI_VARINST' montre un taux de croissance anormal
+              (8,2% sur 7 jours).
+            </p>
+          </div>
+          <button class="alert-action">
+            <span class="material-icons">arrow_forward</span>
+          </button>
+        </div>
+
+        <div class="alert alert-warning">
+          <div class="alert-icon">
+            <span class="material-icons">storage</span>
+          </div>
+          <div class="alert-content">
+            <h4>Optimisation requise</h4>
+            <p>
+              3 tables nécessitent une optimisation pour améliorer les
+              performances du système.
+            </p>
+          </div>
+          <button class="alert-action">
+            <span class="material-icons">arrow_forward</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Carte support -->
+      <div class="support-card">
+        <div class="support-header">
+          <div>
+            <h5 class="support-title">Support technique APS</h5>
+            <p class="support-subtitle">Réponse typique sous 5 minutes</p>
+          </div>
+          <div class="user-avatars">
+            <div class="avatar">AT</div>
+            <div class="avatar">BS</div>
+            <div class="avatar">CM</div>
+          </div>
+        </div>
+        <button class="support-btn" onclick="openSupport()">
+          Besoin d'aide ?
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- Ajouter le CSS suivant dans le fichier dashboard.component.css/scss associé -->
+<style>
+  /* --- Responsive Dashboard Styles --- */
+  .responsive-dashboard {
+    padding: 2rem;
+  }
+
+  @media (max-width: 1200px) {
+    .responsive-dashboard {
+      padding: 1rem;
+    }
+
+    .responsive-status-grid {
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    .responsive-charts {
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .responsive-bottom-section {
+      flex-direction: column;
+    }
+
+    .responsive-right-column {
+      margin-top: 2rem;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .dashboard-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+
+    .responsive-status-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .responsive-charts {
+      flex-direction: column;
+    }
+
+    .responsive-bottom-section {
+      flex-direction: column;
+    }
+
+    .responsive-right-column {
+      margin-top: 1rem;
+    }
+
+    .activity-table,
+    .activity-table thead,
+    .activity-table tbody,
+    .activity-table th,
+    .activity-table td,
+    .activity-table tr {
+      display: block;
+      width: 100%;
+    }
+
+    .activity-table thead {
+      display: none;
+    }
+
+    .activity-table tr {
+      margin-bottom: 1rem;
+      border-bottom: 1px solid #eee;
+    }
+
+    .activity-table td {
+      text-align: right;
+      padding-left: 50%;
+      position: relative;
+    }
+
+    .activity-table td:before {
+      position: absolute;
+      left: 0;
+      width: 50%;
+      padding-left: 1rem;
+      white-space: nowrap;
+      font-weight: bold;
+      text-align: left;
+      content: attr(data-label);
+    }
+
+    .responsive-table-container {
+      overflow-x: auto;
+    }
+  }
+</style>

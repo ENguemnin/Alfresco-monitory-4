@@ -1,0 +1,36 @@
+<div class="sidebar">
+  <!-- <div class="logo"> -->
+  <img
+    src="/assets/images/afriland-removebg-preview.png"
+    alt="Afriland2"
+     class="sidebar-logo-img"
+  />
+
+  <!-- </div> -->
+
+  <div class="menu-items">
+    <a
+      *ngFor="let item of menuItems"
+      [routerLink]="item.route"
+      routerLinkActive="active"
+      class="menu-item"
+    >
+      <span class="material-icons icon">{{ item.icon }}</span>
+      <span class="label">{{ item.label }}</span>
+    </a>
+  </div>
+
+  <div class="bottom-section">
+      <div class="user-info" (click)="onLogout()">
+          <span class="material-icons">account_circle</span>
+          <span>log out</span>
+      </div>
+
+
+      <div class="version">
+      <span>AFB • Version 1.0</span>
+    </div>
+  </div>
+</div>
+
+

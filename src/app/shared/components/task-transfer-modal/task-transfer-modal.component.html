@@ -1,0 +1,202 @@
+<div class="modal-overlay" *ngIf="isOpen" (click)="onBackdropClick($event)">
+    <div class="modal-container">
+        <div class="modal-header">
+            <div *ngIf="transferError" class="error-alert">
+                <span class="material-icons">error</span>
+                <span class="error-text">{{ errorMessage }}</span>
+            </div>
+            <h3>
+                <span class="material-icons">swap_horiz</span>
+                Transférer {{ getTasksArray().length > 1 ? 'les tâches sélectionnées' : 'la tâche' }}
+            </h3>
+            <button class="btn-icon close-btn" (click)="onClose()">
+                <span class="material-icons">close</span>
+            </button>
+        </div>
+
+        <div class="modal-body">
+            <!-- Étape 1: Sélection du type de destinataire -->
+            <div *ngIf="currentStep === 1" class="step-content">
+                <div class="task-info">
+                    <h4 *ngIf="getTasksArray().length === 1">Tâche: {{ getTasksArray()[0].name }}</h4>
+                    <h4 *ngIf="getTasksArray().length > 1">{{ getTasksArray().length }} tâches sélectionnées</h4>
+
+                    <div *ngIf="getTasksArray().length === 1">
+                        <p class="task-description">{{ getTasksArray()[0].description }}</p>
+                        <div class="task-meta">
+              <span class="meta-item">
+                <span class="material-icons">schedule</span>
+                Créée: {{ getTasksArray()[0].created | date:'medium' }}
+              </span>
+                            <span class="meta-item" *ngIf="getTasksArray()[0].dueDate">
+                <span class="material-icons">event</span>
+                Échéance: {{ getTasksArray()[0].dueDate | date:'medium' }}
+              </span>
+                        </div>
+                    </div>
+
+                    <div *ngIf="getTasksArray().length > 1" class="multiple-tasks">
+                        <div class="task-list">
+                            <div class="task-item" *ngFor="let task of getTasksArray()">
+                                <span class="material-icons">task</span>
+                                {{ task.name }}
+                                <span class="task-due" *ngIf="task.dueDate">
+                  (échéance: {{ task.dueDate | date:'shortDate' }})
+                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="transfer-options">
+                    <h5>Sélectionnez le destinataire :</h5>
+
+                    <div class="option-card"
+                         [class.selected]="selectedAssigneeType === 'manager'"
+                         (click)="selectAssigneeType('manager')">
+                        <div class="option-icon manager">
+                            <span class="material-icons">supervisor_account</span>
+                        </div>
+                        <div class="option-content">
+                            <h6>Manager</h6>
+                            <p>Transférer au manager responsable</p>
+                        </div>
+                        <div class="option-check" *ngIf="selectedAssigneeType === 'manager'">
+                            <span class="material-icons">check_circle</span>
+                        </div>
+                    </div>
+
+                    <div class="option-card"
+                         [class.selected]="selectedAssigneeType === 'group'"
+                         (click)="selectAssigneeType('group')">
+                        <div class="option-icon group">
+                            <span class="material-icons">groups</span>
+                        </div>
+                        <div class="option-content">
+                            <h6>Groupe d'utilisateurs</h6>
+                            <p>Transférer à un groupe de travail</p>
+                        </div>
+                        <div class="option-check" *ngIf="selectedAssigneeType === 'group'">
+                            <span class="material-icons">check_circle</span>
+                        </div>
+                    </div>
+
+                    <div class="option-card"
+                         [class.selected]="selectedAssigneeType === 'user'"
+                         (click)="selectAssigneeType('user')">
+                        <div class="option-icon user">
+                            <span class="material-icons">person</span>
+                        </div>
+                        <div class="option-content">
+                            <h6>Utilisateur spécifique</h6>
+                            <p>Choisir un utilisateur dans la liste</p>
+                        </div>
+                        <div class="option-check" *ngIf="selectedAssigneeType === 'user'">
+                            <span class="material-icons">check_circle</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Étape 2: Sélection de l'utilisateur spécifique -->
+            <div *ngIf="currentStep === 2 && selectedAssigneeType === 'user'" class="step-content">
+                <div class="step-header">
+                    <button class="btn-back" (click)="goBack()">
+                        <span class="material-icons">arrow_back</span>
+                        Retour
+                    </button>
+                    <h5>Sélectionner un utilisateur</h5>
+                </div>
+
+                <div class="user-search">
+                    <div class="search-box">
+                        <span class="material-icons">search</span>
+                        <input
+                                type="text"
+                                placeholder="Rechercher un utilisateur..."
+                                [(ngModel)]="searchTerm"
+                                (input)="filterUsers()" />
+                    </div>
+                </div>
+
+                <div class="users-list" *ngIf="!loadingUsers && filteredUsers.length > 0">
+                    <div
+                            class="user-card"
+                            *ngFor="let user of filteredUsers"
+                            [class.selected]="selectedUserId === user.id"
+                            (click)="selectUser(user.id)">
+
+                        <div class="user-avatar">
+                            <span class="material-icons">account_circle</span>
+                        </div>
+
+                        <div class="user-info">
+                            <h6>{{ user.firstName }} {{ user.lastName }}</h6>
+                            <p class="user-role">{{ user.role }}</p>
+                            <p class="user-email">{{ user.email }}</p>
+                        </div>
+
+                        <div class="user-status" [class.active]="user.isActive">
+                            <span class="status-dot"></span>
+                            {{ user.isActive ? 'Actif' : 'Inactif' }}
+                        </div>
+
+                        <div class="user-check" *ngIf="selectedUserId === user.id">
+                            <span class="material-icons">check_circle</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div *ngIf="!loadingUsers && filteredUsers.length === 0" class="no-users">
+                    Aucun utilisateur trouvé.
+                </div>
+            </div>
+
+            <div *ngIf="loadingUsers" class="loading-container">
+                <div class="loading-spinner"></div>
+                <p>Chargement des utilisateurs...</p>
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <div class="footer-actions">
+                <button class="btn btn-secondary" (click)="onClose()">
+                    Annuler
+                </button>
+
+                <!-- Manager-specific transfer button -->
+                <button *ngIf="selectedAssigneeType === 'manager'"
+                        class="btn btn-primary"
+                        [disabled]="transferring"
+                        (click)="onManagerTransfer()"
+                        [class.loading]="transferring">
+                    <span *ngIf="!transferring" class="material-icons">supervisor_account</span>
+                    <span *ngIf="transferring" class="spinner"></span>
+                    {{ transferring ? 'Transfert...' : 'Transférer au manager' }}
+                </button>
+
+                <!-- General transfer button (user or group) -->
+                <button *ngIf="selectedAssigneeType === 'user'"
+                        class="btn btn-primary"
+                        [disabled]="!canProceed() || transferring"
+                        (click)="onTransfer()"
+                        [class.loading]="transferring">
+                    <span *ngIf="!transferring" class="material-icons">send</span>
+                    <span *ngIf="transferring" class="spinner"></span>
+                    {{ transferring ? 'Transfert...' : 'Transférer' }}
+                </button>
+
+                <!-- Group transfer button -->
+                <button *ngIf="selectedAssigneeType === 'group'"
+                        class="btn btn-primary"
+                        [disabled]="transferring"
+                        (click)="onTransferGroup()"
+                        [class.loading]="transferring">
+                    <span *ngIf="!transferring" class="material-icons">groups</span>
+                    <span *ngIf="transferring" class="spinner"></span>
+                    {{ transferring ? 'Transfert...' : 'Transférer au groupe' }}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

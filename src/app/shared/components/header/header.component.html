@@ -1,0 +1,82 @@
+<header class="header">
+  <div
+    class="header-container"
+    style="display: flex; align-items: center; justify-content: space-between"
+  >
+    <div
+      class="header-left"
+      style="flex: 1; display: flex; justify-content: center"
+    >
+      <h1 class="page-title" style="margin: 0; text-align: center">
+        APS First Monitoring 👋
+      </h1>
+    </div>
+
+    <div class="header-right">
+      <div class="date-time">
+        {{ currentDate | date : "medium" }}
+      </div>
+
+      <div class="actions">
+        <!-- Bouton Notifications -->
+        <button
+          class="btn-icon notification-btn"
+          (click)="onNotificationsClick()"
+          title="Processus en cours"
+        >
+          <span class="material-icons">notifications</span>
+          <span class="notification-badge" *ngIf="notificationCount > 0">
+            {{ notificationCount }}
+          </span>
+        </button>
+
+        <!-- Bouton Aide -->
+        <a
+          class="btn-icon help-btn"
+          href="assets/upload/Fonctionnalités du Système de Monitoring pour Alfresco Process Services (APS) 2.pdf"
+          download="Guide_Utilisation.pdf"
+          title="Télécharger le guide d'utilisation"
+          target="_blank"
+          rel="noopener"
+        >
+          <span class="material-icons">help</span>
+        </a>
+
+        <!-- Bouton Paramètres -->
+        <button
+          class="btn-icon settings-btn"
+          (click)="onSettingsClick()"
+          title="Paramètres système"
+        >
+          <span class="material-icons">settings</span>
+        </button>
+
+            <!-- Profil utilisateur -->
+        <div class="user-profile">
+          <div class="user-avatar">
+            <span class="material-icons">account_circle</span>
+            <div class="status-indicator online"></div>
+          </div>
+            <div class="user-info">
+                <div class="user-name">{{ userName }}</div>
+                <div class="user-role">{{ userRole }}</div>
+            </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="header-divider"></div>
+
+  <!-- Modals -->
+  <app-notifications-modal
+    [isOpen]="showNotificationsModal"
+    (closeModal)="onCloseNotificationsModal()"
+  ></app-notifications-modal>
+
+  <app-settings-modal
+    [isOpen]="showSettingsModal"
+    (closeModal)="onCloseSettingsModal()"
+  ></app-settings-modal>
+</header>

@@ -1,0 +1,448 @@
+<br><br> <br>
+<div class="processes-container fade-in">
+  <!-- En-tête -->
+  <div class="processes-header slide-in-down">
+    <h2>Processus APS</h2>
+  </div>
+
+  <!-- Skeleton de chargement -->
+  <div *ngIf="loading" class="processes-skeleton">
+    <!-- Skeleton des onglets -->
+    <div class="skeleton-tabs-container">
+      <div class="skeleton-tab-nav">
+        <div
+          class="skeleton-tab skeleton-animate"
+          *ngFor="let tab of [1, 2, 3, 4]; let i = index"
+          [style.animation-delay.s]="i * 0.2"
+        >
+          <div class="skeleton-tab-label skeleton-animate"></div>
+          <div class="skeleton-tab-count skeleton-animate"></div>
+        </div>
+      </div>
+      <div class="skeleton-tab-indicator skeleton-animate"></div>
+    </div>
+
+    <!-- Skeleton du contenu de l'onglet -->
+    <div class="skeleton-tab-content">
+      <!-- Skeleton de la barre de filtre -->
+      <div class="skeleton-filter-section">
+        <div class="skeleton-search-container">
+          <div class="skeleton-search-field">
+            <div class="skeleton-search-label skeleton-animate"></div>
+            <div class="skeleton-search-input">
+              <div class="skeleton-search-icon skeleton-animate"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Skeleton du bouton d'actions groupées -->
+        <div class="skeleton-bulk-actions">
+          <div class="skeleton-bulk-button">
+            <div class="skeleton-bulk-icon skeleton-animate"></div>
+            <div class="skeleton-bulk-text skeleton-animate"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Skeleton du tableau -->
+      <div class="skeleton-table-container">
+        <!-- Header du tableau -->
+        <div class="skeleton-table-header">
+          <div class="skeleton-header-cell skeleton-checkbox">
+            <div class="skeleton-checkbox-input skeleton-animate"></div>
+          </div>
+          <div class="skeleton-header-cell skeleton-animate">
+            <div class="skeleton-header-text skeleton-animate"></div>
+            <div class="skeleton-sort-icon skeleton-animate"></div>
+          </div>
+          <div class="skeleton-header-cell skeleton-animate">
+            <div class="skeleton-header-text skeleton-animate"></div>
+            <div class="skeleton-sort-icon skeleton-animate"></div>
+          </div>
+          <div class="skeleton-header-cell skeleton-animate">
+            <div class="skeleton-header-text skeleton-animate"></div>
+            <div class="skeleton-sort-icon skeleton-animate"></div>
+          </div>
+          <div class="skeleton-header-cell skeleton-animate">
+            <div class="skeleton-header-text skeleton-animate"></div>
+            <div class="skeleton-sort-icon skeleton-animate"></div>
+          </div>
+          <div class="skeleton-header-cell skeleton-animate">
+            <div class="skeleton-header-text skeleton-animate"></div>
+          </div>
+        </div>
+
+        <!-- Lignes du tableau -->
+        <div class="skeleton-table-rows">
+          <div
+            class="skeleton-table-row"
+            *ngFor="let row of [1, 2, 3, 4, 5, 6, 7, 8]; let i = index"
+            [style.animation-delay.s]="i * 0.1"
+          >
+            <!-- Checkbox -->
+            <div class="skeleton-cell skeleton-checkbox">
+              <div class="skeleton-checkbox-input skeleton-animate"></div>
+            </div>
+
+            <!-- Process Instance ID -->
+            <div class="skeleton-cell">
+              <div class="skeleton-process-id skeleton-animate"></div>
+            </div>
+
+            <!-- Process Definition ID -->
+            <div class="skeleton-cell">
+              <div class="skeleton-definition-id skeleton-animate"></div>
+            </div>
+
+            <!-- Start Time -->
+            <div class="skeleton-cell">
+              <div class="skeleton-date skeleton-animate"></div>
+            </div>
+
+            <!-- Initiator -->
+            <div class="skeleton-cell">
+              <div class="skeleton-initiator skeleton-animate"></div>
+            </div>
+
+            <!-- Actions -->
+            <div class="skeleton-cell skeleton-actions">
+              <div
+                class="skeleton-action-button skeleton-animate"
+                [style.animation-delay.s]="0.1"
+              ></div>
+              <div
+                class="skeleton-action-button skeleton-animate"
+                [style.animation-delay.s]="0.2"
+              ></div>
+              <div
+                class="skeleton-action-button skeleton-animate"
+                [style.animation-delay.s]="0.3"
+              ></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Skeleton du paginateur -->
+        <div class="skeleton-paginator">
+          <div class="skeleton-page-info">
+            <div class="skeleton-page-text skeleton-animate"></div>
+          </div>
+          <div class="skeleton-page-controls">
+            <div
+              class="skeleton-page-button skeleton-animate"
+              *ngFor="let btn of [1, 2, 3, 4, 5]; let i = index"
+              [style.animation-delay.s]="i * 0.1"
+            ></div>
+          </div>
+          <div class="skeleton-page-size">
+            <div class="skeleton-page-size-select skeleton-animate"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Contenu principal -->
+  <div *ngIf="!loading" class="processes-content fade-in">
+    <mat-tab-group
+      (selectedTabChange)="onTabChange($event)"
+      [selectedIndex]="activeTabIndex"
+      animationDuration="300ms"
+      class="processes-tabs"
+    >
+      <mat-tab
+        *ngFor="let tab of tabs"
+        [label]="tab.label + ' (' + tab.count + ')'"
+        class="process-tab"
+      >
+        <div class="tab-content">
+          <br />
+          <br />
+          <div class="filter-section">
+            <br />
+            <br />
+            <mat-form-field
+              appearance="outline"
+              class="search-filter"
+              style="width: 100%"
+            >
+              <mat-label>Filtrer {{ tab.label }}</mat-label>
+              <input
+                matInput
+                [ngModel]="currentSearchValue"
+                (input)="applyFilter($any($event.target).value)"
+                placeholder="Recherche par initiateur ou nom..."
+              />
+              <button
+                mat-icon-button
+                matSuffix
+                *ngIf="currentSearchValue"
+                (click)="clearSearch()"
+                aria-label="Clear search"
+              >
+                <mat-icon>clear</mat-icon>
+              </button>
+              <mat-icon
+                matSuffix
+                *ngIf="!currentSearchValue"
+                class="search-icon"
+                >search</mat-icon
+              >
+            </mat-form-field>
+
+            <div class="bulk-actions" *ngIf="selection.selected.length > 0">
+              <button
+                mat-raised-button
+                color="primary"
+                (click)="showBulkActionsModal = true"
+              >
+                <mat-icon>playlist_add_check</mat-icon>
+                Actions ({{ selection.selected.length }} selected)
+              </button>
+            </div>
+          </div>
+          <div class="table-section">
+            <div class="table-wrapper">
+              <table
+                mat-table
+                [dataSource]="paginatedData"
+                matSort
+                class="process-table"
+              >
+                <!-- Checkbox Column -->
+                <ng-container matColumnDef="select">
+                  <th mat-header-cell *matHeaderCellDef>
+                    <mat-checkbox
+                      (change)="toggleAllRows()"
+                      [checked]="selection.hasValue() && isAllSelected()"
+                      [indeterminate]="selection.hasValue() && !isAllSelected()"
+                    >
+                    </mat-checkbox>
+                  </th>
+                  <td mat-cell *matCellDef="let row">
+                    <mat-checkbox
+                      (click)="$event.stopPropagation()"
+                      (change)="toggleSelection(row)"
+                      [checked]="selection.isSelected(row)"
+                    >
+                    </mat-checkbox>
+                  </td>
+                </ng-container>
+
+                <!-- Instance ID -->
+                <ng-container matColumnDef="processInstanceId">
+                  <th mat-header-cell *matHeaderCellDef mat-sort-header>
+                    <span class="column-header">ID Instance</span>
+                  </th>
+                  <td mat-cell *matCellDef="let process">
+                    <span class="mono">{{ process.processInstanceId }}</span>
+                  </td>
+                </ng-container>
+
+                <!-- Definition ID -->
+                <ng-container matColumnDef="processDefinitionId">
+                  <th mat-header-cell *matHeaderCellDef mat-sort-header>
+                    <span class="column-header">Définition</span>
+                  </th>
+                  <td mat-cell *matCellDef="let process">
+                    {{ process.processDefinitionId }}
+                  </td>
+                </ng-container>
+
+                <!-- Start Time -->
+                <ng-container matColumnDef="processStartTime">
+                  <th mat-header-cell *matHeaderCellDef mat-sort-header>
+                    <span class="column-header">Début</span>
+                  </th>
+                  <td mat-cell *matCellDef="let process">
+                    {{ formatDate(process.processStartTime) }}
+                  </td>
+                </ng-container>
+
+                <!-- Initiator -->
+                <ng-container matColumnDef="processInitiator">
+                  <th mat-header-cell *matHeaderCellDef mat-sort-header>
+                    <span class="column-header">Initiateur</span>
+                  </th>
+                  <td mat-cell *matCellDef="let process">
+                    <span class="initiator">{{
+                      process.processInitiator
+                    }}</span>
+                  </td>
+                </ng-container>
+
+                <!-- Actions Column -->
+                <ng-container matColumnDef="actions">
+                  <th mat-header-cell *matHeaderCellDef>
+                    <span class="column-header">Actions</span>
+                  </th>
+                  <td mat-cell *matCellDef="let process">
+                    <app-task-actions
+                      [processData]="process"
+                      (stopProcess)="
+                        onToggleProcessSuspension(
+                          $event.processInstanceId,
+                          $event.isSuspended
+                        )
+                      "
+                      (transferTask)="onTransferTask($event)"
+                      (terminateProcess)="
+                        onTerminateProcess($event.processInstanceId)
+                      "
+                    >
+                    </app-task-actions>
+                  </td>
+                </ng-container>
+                <tr
+                  mat-header-row
+                  *matHeaderRowDef="displayedColumns"
+                  class="table-header-row"
+                ></tr>
+                <tr
+                  mat-row
+                  *matRowDef="let row; columns: displayedColumns"
+                  [class.selected]="selection.isSelected(row)"
+                  class="table-data-row"
+                ></tr>
+              </table>
+            </div>
+
+            <!-- Custom Pagination Controls - replacing mat-paginator -->
+            <div class="pagination-controls" *ngIf="filteredData.length > 0">
+              <div class="pagination-wrapper">
+                <!-- Informations de pagination -->
+                <div class="pagination-info">
+                  <div class="info-badge">
+                    <span class="material-icons">info</span>
+                    <span class="info-text">
+                      Affichage
+                      <strong>{{ (currentPage - 1) * pageSize + 1 }}</strong> à
+                      <strong>{{
+                        Math.min(currentPage * pageSize, filteredData.length)
+                      }}</strong>
+                      sur <strong>{{ filteredData.length }}</strong> processus
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Navigation pagination -->
+                <div class="pagination-navigation">
+                  <!-- Bouton Précédent -->
+                  <button
+                    class="nav-button nav-previous"
+                    [disabled]="currentPage === 1"
+                    (click)="previousPage()"
+                    title="Page précédente"
+                  >
+                    <span class="material-icons">keyboard_arrow_left</span>
+                    <span class="nav-text">Précédent</span>
+                  </button>
+
+                  <!-- Numéros de pages -->
+                  <div class="page-numbers-container">
+                    <button
+                      *ngFor="let pageNum of visiblePageNumbers"
+                      class="page-number"
+                      [class.active]="pageNum === currentPage"
+                      [class.ellipsis]="pageNum === -1"
+                      [disabled]="pageNum === -1"
+                      (click)="pageNum > 0 ? goToPage(pageNum) : null"
+                    >
+                      <span *ngIf="pageNum > 0">{{ pageNum }}</span>
+                      <span *ngIf="pageNum === -1" class="ellipsis-dots"
+                        >•••</span
+                      >
+                    </button>
+                  </div>
+
+                  <!-- Bouton Suivant -->
+                  <button
+                    class="nav-button nav-next"
+                    [disabled]="currentPage === totalPages"
+                    (click)="nextPage()"
+                    title="Page suivante"
+                  >
+                    <span class="nav-text">Suivant</span>
+                    <span class="material-icons">keyboard_arrow_right</span>
+                  </button>
+                </div>
+
+                <!-- Sélecteur de taille de page -->
+                <div class="page-size-selector">
+                  <div class="selector-wrapper">
+                    <span class="material-icons">view_list</span>
+                    <span class="selector-label">Afficher</span>
+                    <div class="select-container">
+                      <select
+                        [(ngModel)]="pageSize"
+                        (change)="onPageSizeChange()"
+                      >
+                        <option [value]="5">5</option>
+                        <option [value]="10">10</option>
+                        <option [value]="25">25</option>
+                        <option [value]="50">50</option>
+                      </select>
+                      <span class="material-icons select-arrow"
+                        >expand_more</span
+                      >
+                    </div>
+                    <span class="selector-label">par page</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </mat-tab>
+    </mat-tab-group>
+  </div>
+</div>
+
+<!-- Modal de transfert de tâche -->
+<!-- In processes.component.html -->
+<app-task-transfer-modal
+  *ngIf="showTransferModal"
+  [isOpen]="showTransferModal"
+  [taskData]="selectedTaskForTransfer"
+  (closeModal)="onCloseTransferModal()"
+  (taskTransferred)="onTaskTransferred($event)"
+>
+</app-task-transfer-modal>
+
+<!-- Modal de confirmation pour les actions groupées -->
+<app-confirm-dialog
+  *ngIf="showBulkConfirmDialog"
+  [title]="bulkConfirmDialogConfig.title"
+  [message]="bulkConfirmDialogConfig.message"
+  [confirmText]="bulkConfirmDialogConfig.confirmText"
+  [cancelText]="bulkConfirmDialogConfig.cancelText"
+  [icon]="bulkConfirmDialogConfig.icon"
+  [iconColor]="bulkConfirmDialogConfig.iconColor"
+  [theme]="bulkConfirmDialogConfig.theme"
+  (confirmed)="onBulkConfirmDialogResult($event)"
+>
+</app-confirm-dialog>
+
+<!-- Modal d'actions groupées personnalisé -->
+<app-bulk-actions-modal
+  *ngIf="showBulkActionsModal"
+  [actions]="bulkActions"
+  [selectedCount]="selection.selected.length"
+  (close)="showBulkActionsModal = false"
+  (actionSelected)="performBulkAction($event)"
+>
+</app-bulk-actions-modal>
+
+<!-- Toast notifications -->
+<div class="toast-notifications">
+  <app-toast-notification
+    *ngFor="let toast of toasts"
+    [title]="toast.title"
+    [message]="toast.message"
+    [type]="toast.type"
+    [duration]="toast.duration || 0"
+    [isVisible]="true"
+    (closed)="removeToast(toast.id)"
+  >
+  </app-toast-notification>
+</div>

@@ -1,0 +1,53 @@
+<div class="bulk-modal-backdrop" (click)="close.emit()"></div>
+<div
+  class="bulk-modal-card mat-elevation-z8 animate__animated animate__fadeInDown"
+>
+  <button mat-icon-button class="close-btn" (click)="close.emit()">
+    <mat-icon>close</mat-icon>
+  </button>
+  <div class="modal-header">
+    <mat-icon color="primary" class="modal-main-icon"
+      >playlist_add_check</mat-icon
+    >
+    <h2>Actions groupées</h2>
+    <p class="subtitle">{{ selectedCount }} processus sélectionnés</p>
+  </div>
+  <div class="modal-actions-list">
+    <button
+      mat-stroked-button
+      color="accent"
+      class="modal-action-btn suspend-btn"
+      (click)="onAction('suspend')"
+    >
+      <mat-icon>pause_circle</mat-icon>
+      <span>Suspendre tous</span>
+    </button>
+    <button
+      mat-stroked-button
+      color="primary"
+      class="modal-action-btn resume-btn"
+      (click)="onAction('resume')"
+    >
+      <mat-icon>play_circle</mat-icon>
+      <span>Reprendre tous</span>
+    </button>
+    <button
+      mat-stroked-button
+      color="warn"
+      class="modal-action-btn terminate-btn"
+      (click)="onAction('terminate')"
+    >
+      <mat-icon>stop_circle</mat-icon>
+      <span>Arrêter tous</span>
+    </button>
+    <button
+      mat-stroked-button
+      color="accent"
+      class="modal-action-btn transfer-btn"
+      (click)="onAction('transfer')"
+    >
+      <mat-icon>swap_horiz</mat-icon>
+      <span>Transférer tous</span>
+    </button>
+  </div>
+</div>
