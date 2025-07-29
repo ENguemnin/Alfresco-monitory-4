@@ -1,627 +1,762 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Subject, debounceTime, distinctUntilChanged, takeUntil } from 'rxjs';
 
-interface Application {
-  name: string;
-  icon: string;
-  description: string;
-}
+// Components
+import { TaskTransferModalComponent } from '../../shared/components/task-transfer-modal/task-transfer-modal.component';
+import { BulkActionsModalComponent } from '../../shared/components/bulk-actions-modal/bulk-actions-modal.component';
+import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/confirm-dialog.component';
+import { ToastNotificationComponent } from '../../shared/components/toast-notification/toast-notification.component';
 
-interface DurationOption {
-  label: string;
-  value: string;
-  description: string;
-}
+// Models and Services
+import { Task, TaskAssignment } from '../../core/models/task.model';
+import { ToastService } from '../../core/services/toast.service';
 
-interface ProcessType {
-  name: string;
-  value: string;
-  icon: string;
-  description: string;
-}
-
-interface Process {
+// Interfaces
+interface ProcessItem {
   id: string;
   name: string;
-  status: 'active' | 'suspended' | 'completed' | 'failed';
-  startDate: Date;
-  initiator: string;
-  duration: number; // en minutes
-}
-
-interface Task {
-  id: string;
-  processId: string;
-  name: string;
-  status: 'completed' | 'in-progress' | 'pending' | 'failed';
-  assignee?: string;
-  createdDate: Date;
-  modifiedDate?: Date;
-  dueDate?: Date;
-  priority: 'high' | 'medium' | 'low';
+  description: string;
+  type: string;
   category: string;
-  description?: string;
-  progress?: number;
-  hasProblems?: boolean;
-  attachments?: Array<{ name: string; url: string }>;
-  history?: Array<{ date: Date; description: string; user: string }>;
 }
 
-interface User {
-  id: string;
-  name: string;
-  initials: string;
-  role: string;
-}
-
-interface Group {
+interface TaskItem {
   id: string;
   name: string;
   description: string;
-  memberCount: number;
+  status: 'active' | 'suspended' | 'completed' | 'failed' | 'pending';
+  activeInstances: number;
+  processId: string;
 }
 
-interface Manager {
+interface ResultItem {
   id: string;
-  name: string;
-  initials: string;
+  instanceId: string;
+  definition: string;
+  definitionDescription: string;
+  startTime: Date;
+  initiator: string;
+  status: 'active' | 'suspended' | 'completed' | 'failed' | 'pending';
+  type: string;
+}
+
+interface StatusOption {
+  value: string;
+  label: string;
+}
+
+interface Toast {
+  id: string;
   title: string;
-  department: string;
-  level: number;
+  message: string;
+  type: 'success' | 'error' | 'warning' | 'info';
+  duration?: number;
 }
 
 @Component({
   selector: 'app-process-dynamics',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    TaskTransferModalComponent,
+    BulkActionsModalComponent,
+    ConfirmDialogComponent,
+    ToastNotificationComponent
+  ],
   templateUrl: './process-dynamics.component.html',
   styleUrls: ['./process-dynamics.component.scss']
 })
-export class ProcessDynamicsComponent implements OnInit {
-  // État de l'interface
-  showProcessView = false;
-  isLoading = false;
+export class ProcessDynamicsComponent implements OnInit, OnDestroy {
+  // Expose Math for template
+  Math = Math;
+  
+  private destroy$ = new Subject<void>();
+  private processSearchSubject = new Subject<string>();
+  private taskSearchSubject = new Subject<string>();
+  private globalSearchSubject = new Subject<string>();
 
-  // Données du formulaire de filtrage
-  availableApps: Application[] = [
-    { name: 'Loan Management', icon: '💰', description: 'Gestion des prêts et crédits' },
-    { name: 'Customer Onboarding', icon: '👤', description: 'Intégration des nouveaux clients' },
-    { name: 'Document Processing', icon: '📄', description: 'Traitement des documents' },
-    { name: 'Risk Assessment', icon: '⚠️', description: 'Évaluation des risques' },
-    { name: 'Compliance Check', icon: '✅', description: 'Vérification de conformité' }
-  ];
+  // ===== LOADING STATE =====
+  loading = true;
 
-  selectedApps: string[] = [];
-  isAppDropdownOpen = false;
-  appSearchTerm = '';
-
-  durationOptions: DurationOption[] = [
-    { label: '24h', value: '24h', description: ' ' },
-    { label: '3 jours', value: '3d', description: '' },
-    { label: '1 semaine', value: '1w', description: '' },
-    { label: '1 mois', value: '1m', description: ' ' },
-    { label: '3 mois', value: '3m', description: '' },
-    { label: '6 mois', value: '6m', description: '' },
-    { label: '1 an', value: '1y', description: ' ' },
-    { label: '2 ans', value: '2y', description: '' }
-  ];
-
-  selectedDuration = '1w';
-
-  processTypes: ProcessType[] = [
-    {
-      name: 'Processus abandonnés',
-      value: 'abandoned',
-      icon: '❌',
-      description: 'Processus interrompus avant leur terme'
-    },
-    {
-      name: 'Uniquement par son initiateur',
-      value: 'initiator-only',
-      icon: '👤',
-      description: 'Processus traités uniquement par leur créateur'
-    },
-    {
-      name: 'Avec une seule tâche exécutée',
-      value: 'single-task',
-      icon: '⚡',
-      description: 'Processus avec très peu d\'activité'
-    },
-    {
-      name: 'Avec erreur/exception technique',
-      value: 'technical-error',
-      icon: '⚠️',
-      description: 'Processus ayant rencontré des erreurs'
-    },
-    {
-      name: 'Sans aucune tâche utilisateur',
-      value: 'no-user-task',
-      icon: '🚫',
-      description: 'Processus entièrement automatisés'
-    }
-  ];
-
-  selectedProcessTypes: string[] = [];
-
-  // Données de la vue processus
-  processes: Process[] = [];
-  filteredProcesses: Process[] = [];
-  selectedProcess: Process | null = null;
-
-  tasks: Task[] = [];
-  filteredTasks: Task[] = [];
-  selectedTask: Task | null = null;
-  selectedTasks: Task[] = [];
-
-  // Contrôles de recherche et filtrage
+  // ===== FILTER STATE =====
+  filtersApplied = false;
   processSearchTerm = '';
   taskSearchTerm = '';
-  processSortBy = 'newest';
-  activeQuickFilter = 'all';
+  globalSearchTerm = '';
+  startDate = '';
+  endDate = '';
+  dateRangeError = '';
+  applyingFilters = false;
 
-  quickFilters = [
-    { label: 'Tous', value: 'all' },
-    { label: 'Actifs', value: 'active' },
-    { label: 'Suspendus', value: 'suspended' },
-    { label: 'Terminés', value: 'completed' },
-    { label: 'Échoués', value: 'failed' }
-  ];
+  // ===== AUTOCOMPLETE STATE =====
+  showProcessSuggestions = false;
+  showTaskSuggestions = false;
+  processSuggestions: ProcessItem[] = [];
+  taskSuggestions: TaskItem[] = [];
 
-  // Modal de transfert
+  // ===== SELECTION STATE =====
+  selectedProcess: ProcessItem | null = null;
+  selectedTasks: TaskItem[] = [];
+  selectedStatuses: string[] = [];
+  selectedItems = new Set<string>();
+
+  // ===== RESULTS STATE =====
+  allResults: ResultItem[] = [];
+  filteredResults: ResultItem[] = [];
+  paginatedResults: ResultItem[] = [];
+
+  // ===== PAGINATION STATE =====
+  currentPage = 1;
+  pageSize = 10;
+  totalPages = 1;
+
+  // ===== SORTING STATE =====
+  sortField = '';
+  sortDirection: 'asc' | 'desc' = 'asc';
+
+  // ===== MODAL STATE =====
   showTransferModal = false;
-  transferTasks: Task[] = [];
-  transferType: 'person' | 'group' | 'manager' = 'person';
-  userSearchTerm = '';
-  userSearchResults: User[] = [];
-  selectedUser: User | null = null;
-  selectedGroup: Group | null = null;
-  selectedManager: Manager | null = null;
-  transferComment = '';
-  notifyAssignee = true;
-  notifyOriginal = false;
-  isTransferring = false;
+  showBulkActionsModal = false;
+  showConfirmDialog = false;
+  taskToTransfer: Task | Task[] | null = null;
+  confirmDialogConfig = {
+    title: '',
+    message: '',
+    confirmText: 'Confirmer',
+    cancelText: 'Annuler',
+    icon: 'help_outline',
+    iconColor: '#f59e0b',
+    theme: ''
+  };
 
-  // Données pour le transfert
-  availableGroups: Group[] = [
-    { id: '1', name: 'Équipe Crédit', description: 'Spécialistes en analyse de crédit', memberCount: 8 },
-    { id: '2', name: 'Support Client', description: 'Service client et support', memberCount: 12 },
-    { id: '3', name: 'Conformité', description: 'Équipe de vérification réglementaire', memberCount: 5 }
+  // ===== TOAST STATE =====
+  toasts: Toast[] = [];
+
+  // ===== MOCK DATA =====
+  availableProcesses: ProcessItem[] = [
+    {
+      id: '1',
+      name: 'Demande de Prêt Personnel',
+      description: 'Processus de validation des demandes de prêt personnel',
+      type: 'loan',
+      category: 'Finance'
+    },
+    {
+      id: '2',
+      name: 'Ouverture de Compte',
+      description: 'Processus d\'ouverture de nouveaux comptes bancaires',
+      type: 'account',
+      category: 'Banking'
+    },
+    {
+      id: '3',
+      name: 'Validation KYC',
+      description: 'Processus de vérification Know Your Customer',
+      type: 'kyc',
+      category: 'Compliance'
+    },
+    {
+      id: '4',
+      name: 'Demande Carte Bancaire',
+      description: 'Processus de demande et émission de cartes bancaires',
+      type: 'card',
+      category: 'Banking'
+    },
+    {
+      id: '5',
+      name: 'Évaluation Risque Crédit',
+      description: 'Processus d\'évaluation des risques de crédit',
+      type: 'risk',
+      category: 'Risk Management'
+    }
   ];
 
-  availableManagers: Manager[] = [
-    { id: '1', name: 'Marie Dubois', initials: 'MD', title: 'Directrice Crédit', department: 'Crédit', level: 1 },
-    { id: '2', name: 'Jean Martin', initials: 'JM', title: 'Chef de Service', department: 'Support', level: 2 },
-    { id: '3', name: 'Sophie Laurent', initials: 'SL', title: 'Responsable Conformité', department: 'Conformité', level: 2 }
+  availableTasks: TaskItem[] = [
+    {
+      id: '1',
+      name: 'Vérification Documents',
+      description: 'Vérifier les documents fournis par le client',
+      status: 'active',
+      activeInstances: 15,
+      processId: '1'
+    },
+    {
+      id: '2',
+      name: 'Analyse Financière',
+      description: 'Analyser la situation financière du demandeur',
+      status: 'active',
+      activeInstances: 8,
+      processId: '1'
+    },
+    {
+      id: '3',
+      name: 'Validation Manager',
+      description: 'Validation finale par le manager',
+      status: 'pending',
+      activeInstances: 3,
+      processId: '1'
+    },
+    {
+      id: '4',
+      name: 'Saisie Informations Client',
+      description: 'Saisir les informations du nouveau client',
+      status: 'active',
+      activeInstances: 12,
+      processId: '2'
+    },
+    {
+      id: '5',
+      name: 'Vérification Identité',
+      description: 'Vérifier l\'identité du client',
+      status: 'active',
+      activeInstances: 10,
+      processId: '2'
+    }
   ];
 
-  // Toast de succès
-  showSuccessToast = false;
-  successMessage = '';
+  availableStatuses: StatusOption[] = [
+    { value: 'active', label: 'En cours' },
+    { value: 'suspended', label: 'Suspendue' },
+    { value: 'completed', label: 'Terminée' },
+    { value: 'failed', label: 'Échec' },
+    { value: 'pending', label: 'En attente' }
+  ];
+
+  constructor(private toastService: ToastService) {
+    this.setupSearchDebouncing();
+  }
 
   ngOnInit(): void {
-    this.generateMockData();
-  }
-
-  // ===== MÉTHODES DU FORMULAIRE DE FILTRAGE =====
-
-  get filteredApps(): Application[] {
-    if (!this.appSearchTerm) return this.availableApps;
-    return this.availableApps.filter(app =>
-      app.name.toLowerCase().includes(this.appSearchTerm.toLowerCase()) ||
-      app.description.toLowerCase().includes(this.appSearchTerm.toLowerCase())
-    );
-  }
-
-  toggleAppDropdown(): void {
-    this.isAppDropdownOpen = !this.isAppDropdownOpen;
-  }
-
-  toggleApp(appName: string): void {
-    const index = this.selectedApps.indexOf(appName);
-    if (index > -1) {
-      this.selectedApps.splice(index, 1);
-    } else {
-      this.selectedApps.push(appName);
-    }
-  }
-
-  removeApp(appName: string, event: Event): void {
-    event.stopPropagation();
-    const index = this.selectedApps.indexOf(appName);
-    if (index > -1) {
-      this.selectedApps.splice(index, 1);
-    }
-  }
-
-  selectDuration(duration: string): void {
-     this.selectedDuration = duration;
-  }
-
-  toggleProcessType(type: string): void {
-    const index = this.selectedProcessTypes.indexOf(type);
-    if (index > -1) {
-      this.selectedProcessTypes.splice(index, 1);
-    } else {
-      this.selectedProcessTypes.push(type);
-    }
-  }
-
-  applyFilters(): void {
-    this.isLoading = true;
-    
-    // Simulation du chargement
+    // Simulate initial loading
     setTimeout(() => {
-      this.isLoading = false;
-      this.showProcessView = true;
-      this.filterProcesses();
-    }, 2000);
+      this.loading = false;
+    }, 1500);
   }
 
-  goBackToFilters(): void {
-    this.showProcessView = false;
-    this.selectedProcess = null;
-    this.selectedTask = null;
-    this.selectedTasks = [];
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
-  // ===== MÉTHODES DE LA VUE PROCESSUS =====
+  // ===== SETUP METHODS =====
+  private setupSearchDebouncing(): void {
+    this.processSearchSubject
+      .pipe(debounceTime(300), distinctUntilChanged(), takeUntil(this.destroy$))
+      .subscribe(term => {
+        this.searchProcesses(term);
+      });
 
-  generateMockData(): void {
-    // Génération des processus mock
-    this.processes = [
-      {
-        id: '1',
-        name: 'Loan Application - John Doe',
-        status: 'active',
-        startDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
-        initiator: 'john.admin',
-        duration: 4320 // 3 jours en minutes
-      },
-      {
-        id: '2',
-        name: 'Document Verification - Jane Smith',
-        status: 'suspended',
-        startDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-        initiator: 'jane.admin',
-        duration: 7200
-      },
-      {
-        id: '3',
-        name: 'Credit Evaluation - Bob Wilson',
-        status: 'completed',
-        startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-        initiator: 'bob.admin',
-        duration: 2880
-      },
-      {
-        id: '4',
-        name: 'Risk Assessment - Alice Brown',
-        status: 'failed',
-        startDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-        initiator: 'alice.admin',
-        duration: 1440
-      }
-    ];
+    this.taskSearchSubject
+      .pipe(debounceTime(300), distinctUntilChanged(), takeUntil(this.destroy$))
+      .subscribe(term => {
+        this.searchTasks(term);
+      });
 
-    // Génération des tâches mock
-    this.tasks = [
-      {
-        id: '1',
-        processId: '1',
-        name: 'Fill Loan Application',
-        status: 'completed',
-        assignee: 'John Doe',
-        createdDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
-        modifiedDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-        priority: 'high',
-        category: 'Documentation',
-        description: 'Remplir le formulaire de demande de prêt avec toutes les informations requises',
-        attachments: [
-          { name: 'application_form.pdf', url: '#' },
-          { name: 'identity_document.pdf', url: '#' }
-        ],
-        history: [
-          { date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), description: 'Tâche créée', user: 'Système' },
-          { date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), description: 'Tâche terminée', user: 'John Doe' }
-        ]
-      },
-      {
-        id: '2',
-        processId: '1',
-        name: 'Review Application',
-        status: 'in-progress',
-        assignee: 'Marie Dubois',
-        createdDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-        dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
-        priority: 'high',
-        category: 'Review',
-        description: 'Examiner la demande de prêt et vérifier la conformité',
-        progress: 65,
-        history: [
-          { date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), description: 'Tâche créée', user: 'Système' },
-          { date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), description: 'Révision commencée', user: 'Marie Dubois' }
-        ]
-      },
-      {
-        id: '3',
-        processId: '1',
-        name: 'Final Approval',
-        status: 'pending',
-        createdDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
-        priority: 'medium',
-        category: 'Approval',
-        description: 'Approbation finale du prêt par le directeur',
-        history: [
-          { date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), description: 'Tâche créée', user: 'Système' }
-        ]
-      },
-      {
-        id: '4',
-        processId: '2',
-        name: 'Document OCR',
-        status: 'failed',
-        assignee: 'Système OCR',
-        createdDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-        priority: 'high',
-        category: 'Processing',
-        description: 'Extraction automatique des données des documents',
-        hasProblems: true,
-        history: [
-          { date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), description: 'Tâche créée', user: 'Système' },
-          { date: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000), description: 'Échec OCR - Document illisible', user: 'Système' }
-        ]
-      }
-    ];
-
-    this.filteredProcesses = [...this.processes];
+    this.globalSearchSubject
+      .pipe(debounceTime(300), distinctUntilChanged(), takeUntil(this.destroy$))
+      .subscribe(term => {
+        this.performGlobalSearch(term);
+      });
   }
 
-  filterProcesses(): void {
-    let filtered = [...this.processes];
-
-    // Filtre par recherche
-    if (this.processSearchTerm) {
-      const term = this.processSearchTerm.toLowerCase();
-      filtered = filtered.filter(process =>
-        process.name.toLowerCase().includes(term) ||
-        process.initiator.toLowerCase().includes(term)
-      );
-    }
-
-    // Filtre rapide par statut
-    if (this.activeQuickFilter !== 'all') {
-      filtered = filtered.filter(process => process.status === this.activeQuickFilter);
-    }
-
-    // Tri
-    switch (this.processSortBy) {
-      case 'newest':
-        filtered.sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
-        break;
-      case 'oldest':
-        filtered.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
-        break;
-      case 'name':
-        filtered.sort((a, b) => a.name.localeCompare(b.name));
-        break;
-      case 'status':
-        filtered.sort((a, b) => a.status.localeCompare(b.status));
-        break;
-    }
-
-    this.filteredProcesses = filtered;
+  // ===== SEARCH METHODS =====
+  onProcessSearch(): void {
+    this.processSearchSubject.next(this.processSearchTerm);
   }
 
-  setQuickFilter(filter: string): void {
-    this.activeQuickFilter = filter;
-    this.filterProcesses();
+  onTaskSearch(): void {
+    this.taskSearchSubject.next(this.taskSearchTerm);
   }
 
-  sortProcesses(): void {
-    this.filterProcesses();
+  onGlobalSearch(): void {
+    this.globalSearchSubject.next(this.globalSearchTerm);
   }
 
-  selectProcess(process: Process): void {
-    this.selectedProcess = process;
-    this.selectedTask = null;
-    this.selectedTasks = [];
-    this.filterTasks();
-  }
-
-  getTasks(): Task[] {
-    if (!this.selectedProcess) return [];
-    return this.tasks.filter(task => task.processId === this.selectedProcess!.id);
-  }
-
-  filterTasks(): void {
-    let filtered = this.getTasks();
-
-    if (this.taskSearchTerm) {
-      const term = this.taskSearchTerm.toLowerCase();
-      filtered = filtered.filter(task =>
-        task.name.toLowerCase().includes(term) ||
-        (task.assignee && task.assignee.toLowerCase().includes(term))
-      );
-    }
-
-    this.filteredTasks = filtered;
-  }
-
-  selectTask(task: Task): void {
-    this.selectedTask = task;
-  }
-
-  toggleTaskSelection(task: Task, event: Event): void {
-    const checkbox = event.target as HTMLInputElement;
-    if (checkbox.checked) {
-      if (!this.selectedTasks.includes(task)) {
-        this.selectedTasks.push(task);
-      }
-    } else {
-      const index = this.selectedTasks.indexOf(task);
-      if (index > -1) {
-        this.selectedTasks.splice(index, 1);
-      }
-    }
-  }
-
-  getPendingTasksCount(): number {
-    return this.getTasks().filter(task => task.status === 'pending' || task.status === 'in-progress').length;
-  }
-
-  // Actions sur les processus
-  toggleSuspend(process: Process, event: Event): void {
-    event.stopPropagation();
-    process.status = process.status === 'suspended' ? 'active' : 'suspended';
-    this.showToast(`Processus ${process.status === 'suspended' ? 'suspendu' : 'repris'} avec succès`);
-  }
-
-  stopProcess(process: Process, event: Event): void {
-    event.stopPropagation();
-    if (confirm('Êtes-vous sûr de vouloir arrêter ce processus ?')) {
-      process.status = 'failed';
-      this.showToast('Processus arrêté avec succès');
-    }
-  }
-
-  viewDetails(process: Process, event: Event): void {
-    event.stopPropagation();
-    this.selectProcess(process);
-  }
-
-  refreshData(): void {
-    this.generateMockData();
-    this.showToast('Données actualisées');
-  }
-
-  // ===== MÉTHODES DU MODAL DE TRANSFERT =====
-
-  openTransferModal(task: Task): void {
-    this.transferTasks = [task];
-    this.showTransferModal = true;
-    this.resetTransferForm();
-  }
-
-  openBulkTransferModal(): void {
-    this.transferTasks = [...this.selectedTasks];
-    this.showTransferModal = true;
-    this.resetTransferForm();
-  }
-
-  closeTransferModal(): void {
-    this.showTransferModal = false;
-    this.resetTransferForm();
-  }
-
-  resetTransferForm(): void {
-    this.transferType = 'person';
-    this.userSearchTerm = '';
-    this.userSearchResults = [];
-    this.selectedUser = null;
-    this.selectedGroup = null;
-    this.selectedManager = null;
-    this.transferComment = '';
-    this.notifyAssignee = true;
-    this.notifyOriginal = false;
-  }
-
-  setTransferType(type: 'person' | 'group' | 'manager'): void {
-    this.transferType = type;
-    this.selectedUser = null;
-    this.selectedGroup = null;
-    this.selectedManager = null;
-  }
-
-  searchUsers(): void {
-    if (this.userSearchTerm.length < 2) {
-      this.userSearchResults = [];
+  private searchProcesses(term: string): void {
+    if (!term.trim()) {
+      this.processSuggestions = [];
       return;
     }
 
-    // Simulation de recherche d'utilisateurs
-    const mockUsers: User[] = [
-      { id: '1', name: 'Marie Dubois', initials: 'MD', role: 'Analyste Crédit' },
-      { id: '2', name: 'Jean Martin', initials: 'JM', role: 'Superviseur' },
-      { id: '3', name: 'Sophie Laurent', initials: 'SL', role: 'Responsable Conformité' },
-      { id: '4', name: 'Pierre Durand', initials: 'PD', role: 'Analyste Senior' }
-    ];
-
-    this.userSearchResults = mockUsers.filter(user =>
-      user.name.toLowerCase().includes(this.userSearchTerm.toLowerCase()) ||
-      user.role.toLowerCase().includes(this.userSearchTerm.toLowerCase())
-    );
+    this.processSuggestions = this.availableProcesses
+      .filter(process => 
+        process.name.toLowerCase().includes(term.toLowerCase()) ||
+        process.description.toLowerCase().includes(term.toLowerCase()) ||
+        process.category.toLowerCase().includes(term.toLowerCase())
+      )
+      .slice(0, 10);
   }
 
-  selectUser(user: User): void {
-    this.selectedUser = user;
-    this.userSearchTerm = user.name;
-    this.userSearchResults = [];
+  private searchTasks(term: string): void {
+    if (!term.trim() || !this.selectedProcess) {
+      this.taskSuggestions = [];
+      return;
+    }
+
+    this.taskSuggestions = this.availableTasks
+      .filter(task => 
+        task.processId === this.selectedProcess!.id &&
+        (task.name.toLowerCase().includes(term.toLowerCase()) ||
+         task.description.toLowerCase().includes(term.toLowerCase()))
+      )
+      .slice(0, 10);
   }
 
-  selectGroup(group: Group): void {
-    this.selectedGroup = group;
+  private performGlobalSearch(term: string): void {
+    if (!term.trim()) {
+      this.filteredResults = [...this.allResults];
+    } else {
+      this.filteredResults = this.allResults.filter(item =>
+        item.instanceId.toLowerCase().includes(term.toLowerCase()) ||
+        item.definition.toLowerCase().includes(term.toLowerCase()) ||
+        item.initiator.toLowerCase().includes(term.toLowerCase())
+      );
+    }
+    this.updatePagination();
   }
 
-  selectManager(manager: Manager): void {
-    this.selectedManager = manager;
+  // ===== SELECTION METHODS =====
+  selectProcess(process: ProcessItem): void {
+    this.selectedProcess = process;
+    this.processSearchTerm = process.name;
+    this.showProcessSuggestions = false;
+    
+    // Clear task selections when process changes
+    this.selectedTasks = [];
+    this.taskSearchTerm = '';
   }
 
-  canConfirmTransfer(): boolean {
-    switch (this.transferType) {
-      case 'person':
-        return !!this.selectedUser;
-      case 'group':
-        return !!this.selectedGroup;
-      case 'manager':
-        return !!this.selectedManager;
-      default:
-        return false;
+  selectTask(task: TaskItem): void {
+    if (!this.selectedTasks.find(t => t.id === task.id)) {
+      this.selectedTasks.push(task);
+    }
+    this.taskSearchTerm = '';
+    this.showTaskSuggestions = false;
+  }
+
+  removeSelectedTask(task: TaskItem): void {
+    this.selectedTasks = this.selectedTasks.filter(t => t.id !== task.id);
+  }
+
+  clearSelectedTasks(): void {
+    this.selectedTasks = [];
+  }
+
+  toggleStatus(status: string): void {
+    const index = this.selectedStatuses.indexOf(status);
+    if (index > -1) {
+      this.selectedStatuses.splice(index, 1);
+    } else {
+      this.selectedStatuses.push(status);
     }
   }
 
-  confirmTransfer(): void {
-    if (!this.canConfirmTransfer()) return;
-
-    this.isTransferring = true;
-
-    // Simulation du transfert
-    setTimeout(() => {
-      this.isTransferring = false;
-      this.closeTransferModal();
+  // ===== FILTER METHODS =====
+  validateDateRange(): void {
+    this.dateRangeError = '';
+    
+    if (this.startDate && this.endDate) {
+      const start = new Date(this.startDate);
+      const end = new Date(this.endDate);
       
-      let assigneeName = '';
-      switch (this.transferType) {
-        case 'person':
-          assigneeName = this.selectedUser!.name;
-          break;
-        case 'group':
-          assigneeName = this.selectedGroup!.name;
-          break;
-        case 'manager':
-          assigneeName = this.selectedManager!.name;
-          break;
+      if (start >= end) {
+        this.dateRangeError = 'La date de fin doit être postérieure à la date de début';
       }
-
-      // Mettre à jour les tâches transférées
-      this.transferTasks.forEach(task => {
-        task.assignee = assigneeName;
-        task.modifiedDate = new Date();
-        task.history?.push({
-          date: new Date(),
-          description: `Tâche transférée à ${assigneeName}`,
-          user: 'Utilisateur actuel'
-        });
-      });
-
-      this.selectedTasks = [];
-      this.showToast(`${this.transferTasks.length} tâche(s) transférée(s) à ${assigneeName}`);
-    }, 2000);
+    }
   }
 
-  // ===== MÉTHODES UTILITAIRES =====
+  canApplyFilters(): boolean {
+    return (this.selectedProcess || this.selectedTasks.length > 0 || 
+            this.selectedStatuses.length > 0 || this.startDate || this.endDate) &&
+           !this.dateRangeError;
+  }
 
-  formatDate(date: Date): string {
+  hasActiveFilters(): boolean {
+    return this.selectedProcess !== null || 
+           this.selectedTasks.length > 0 || 
+           this.selectedStatuses.length > 0 || 
+           this.startDate !== '' || 
+           this.endDate !== '';
+  }
+
+  applyFilters(): void {
+    if (!this.canApplyFilters()) return;
+
+    this.applyingFilters = true;
+
+    // Simulate API call
+    setTimeout(() => {
+      this.generateMockResults();
+      this.filtersApplied = true;
+      this.applyingFilters = false;
+      this.updatePagination();
+      
+      this.showToast('success', 'Filtres appliqués', 
+        `${this.allResults.length} résultat(s) trouvé(s)`);
+    }, 1000);
+  }
+
+  clearAllFilters(): void {
+    this.selectedProcess = null;
+    this.selectedTasks = [];
+    this.selectedStatuses = [];
+    this.startDate = '';
+    this.endDate = '';
+    this.processSearchTerm = '';
+    this.taskSearchTerm = '';
+    this.globalSearchTerm = '';
+    this.dateRangeError = '';
+    this.filtersApplied = false;
+    this.allResults = [];
+    this.filteredResults = [];
+    this.paginatedResults = [];
+    this.selectedItems.clear();
+    
+    this.showToast('info', 'Filtres effacés', 'Tous les filtres ont été réinitialisés');
+  }
+
+  removeProcessFilter(): void {
+    this.selectedProcess = null;
+    this.processSearchTerm = '';
+    this.selectedTasks = [];
+    this.taskSearchTerm = '';
+  }
+
+  clearDateRange(): void {
+    this.startDate = '';
+    this.endDate = '';
+    this.dateRangeError = '';
+  }
+
+  formatDateRange(): string {
+    if (this.startDate && this.endDate) {
+      return `${this.formatDate(this.startDate)} - ${this.formatDate(this.endDate)}`;
+    } else if (this.startDate) {
+      return `Depuis ${this.formatDate(this.startDate)}`;
+    } else if (this.endDate) {
+      return `Jusqu'au ${this.formatDate(this.endDate)}`;
+    }
+    return '';
+  }
+
+  // ===== MOCK DATA GENERATION =====
+  private generateMockResults(): void {
+    const mockResults: ResultItem[] = [];
+    const statuses: Array<'active' | 'suspended' | 'completed' | 'failed' | 'pending'> = 
+      ['active', 'suspended', 'completed', 'failed', 'pending'];
+    const initiators = ['Jean Dupont', 'Marie Martin', 'Pierre Durand', 'Sophie Legrand', 'Antoine Robert'];
+    
+    for (let i = 1; i <= 50; i++) {
+      const randomStatus = statuses[Math.floor(Math.random() * statuses.length)];
+      const randomInitiator = initiators[Math.floor(Math.random() * initiators.length)];
+      const randomDaysAgo = Math.floor(Math.random() * 30);
+      
+      mockResults.push({
+        id: `result-${i}`,
+        instanceId: `INST-${2000 + i}`,
+        definition: this.selectedProcess?.name || `Processus ${i}`,
+        definitionDescription: this.selectedProcess?.description || `Description du processus ${i}`,
+        startTime: new Date(Date.now() - randomDaysAgo * 24 * 60 * 60 * 1000),
+        initiator: randomInitiator,
+        status: randomStatus,
+        type: this.selectedProcess?.type || 'generic'
+      });
+    }
+
+    this.allResults = mockResults;
+    this.filteredResults = [...mockResults];
+  }
+
+  // ===== TABLE METHODS =====
+  trackByItem(index: number, item: ResultItem): string {
+    return item.id;
+  }
+
+  sortBy(field: string): void {
+    if (this.sortField === field) {
+      this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+      this.sortField = field;
+      this.sortDirection = 'asc';
+    }
+
+    this.filteredResults.sort((a, b) => {
+      let valueA: any = a[field as keyof ResultItem];
+      let valueB: any = b[field as keyof ResultItem];
+
+      if (field === 'startTime') {
+        valueA = new Date(valueA).getTime();
+        valueB = new Date(valueB).getTime();
+      } else if (typeof valueA === 'string') {
+        valueA = valueA.toLowerCase();
+        valueB = valueB.toLowerCase();
+      }
+
+      const comparison = valueA < valueB ? -1 : valueA > valueB ? 1 : 0;
+      return this.sortDirection === 'asc' ? comparison : -comparison;
+    });
+
+    this.updatePagination();
+  }
+
+  getSortIcon(field: string): string {
+    if (this.sortField !== field) return 'unfold_more';
+    return this.sortDirection === 'asc' ? 'keyboard_arrow_up' : 'keyboard_arrow_down';
+  }
+
+  // ===== SELECTION METHODS =====
+  toggleSelectAll(): void {
+    if (this.isAllSelected()) {
+      this.selectedItems.clear();
+    } else {
+      this.paginatedResults.forEach(item => this.selectedItems.add(item.id));
+    }
+  }
+
+  toggleSelectItem(itemId: string): void {
+    if (this.selectedItems.has(itemId)) {
+      this.selectedItems.delete(itemId);
+    } else {
+      this.selectedItems.add(itemId);
+    }
+  }
+
+  isAllSelected(): boolean {
+    return this.paginatedResults.length > 0 && 
+           this.paginatedResults.every(item => this.selectedItems.has(item.id));
+  }
+
+  isSomeSelected(): boolean {
+    return this.selectedItems.size > 0 && !this.isAllSelected();
+  }
+
+  // ===== PAGINATION METHODS =====
+  updatePagination(): void {
+    this.totalPages = Math.ceil(this.filteredResults.length / this.pageSize);
+    this.currentPage = Math.min(this.currentPage, this.totalPages || 1);
+    
+    const startIndex = (this.currentPage - 1) * this.pageSize;
+    const endIndex = startIndex + this.pageSize;
+    this.paginatedResults = this.filteredResults.slice(startIndex, endIndex);
+  }
+
+  goToPage(page: number): void {
+    if (page >= 1 && page <= this.totalPages) {
+      this.currentPage = page;
+      this.updatePagination();
+    }
+  }
+
+  onPageSizeChange(): void {
+    this.currentPage = 1;
+    this.updatePagination();
+  }
+
+  getVisiblePages(): number[] {
+    const pages: number[] = [];
+    const maxVisible = 7;
+    
+    if (this.totalPages <= maxVisible) {
+      for (let i = 1; i <= this.totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      if (this.currentPage <= 4) {
+        for (let i = 1; i <= 5; i++) pages.push(i);
+        pages.push(-1); // ellipsis
+        pages.push(this.totalPages);
+      } else if (this.currentPage >= this.totalPages - 3) {
+        pages.push(1);
+        pages.push(-1); // ellipsis
+        for (let i = this.totalPages - 4; i <= this.totalPages; i++) pages.push(i);
+      } else {
+        pages.push(1);
+        pages.push(-1); // ellipsis
+        for (let i = this.currentPage - 1; i <= this.currentPage + 1; i++) pages.push(i);
+        pages.push(-1); // ellipsis
+        pages.push(this.totalPages);
+      }
+    }
+    
+    return pages;
+  }
+
+  // ===== ACTION METHODS =====
+  toggleSuspend(item: ResultItem): void {
+    const newStatus = item.status === 'suspended' ? 'active' : 'suspended';
+    item.status = newStatus;
+    
+    const action = newStatus === 'suspended' ? 'suspendu' : 'repris';
+    this.showToast('success', `Processus ${action}`, 
+      `Le processus ${item.instanceId} a été ${action} avec succès`);
+  }
+
+  transferTask(item: ResultItem): void {
+    const task: Task = {
+      id: item.id,
+      processInstanceId: item.instanceId,
+      processDefinitionId: item.definition,
+      name: `Tâche ${item.definition}`,
+      description: item.definitionDescription,
+      assignee: item.initiator,
+      created: item.startTime,
+      priority: 50,
+      status: 'assigned'
+    };
+    
+    this.taskToTransfer = task;
+    this.showTransferModal = true;
+  }
+
+  stopTask(item: ResultItem): void {
+    this.confirmDialogConfig = {
+      title: 'Confirmer l\'arrêt',
+      message: `Êtes-vous sûr de vouloir arrêter le processus ${item.instanceId} ?`,
+      confirmText: 'Arrêter',
+      cancelText: 'Annuler',
+      icon: 'stop_circle',
+      iconColor: '#ef4444',
+      theme: 'danger'
+    };
+    this.showConfirmDialog = true;
+  }
+
+  // ===== BULK ACTIONS =====
+  bulkSuspend(): void {
+    this.performBulkAction('suspend', 'Suspension en masse');
+  }
+
+  bulkResume(): void {
+    this.performBulkAction('resume', 'Reprise en masse');
+  }
+
+  bulkTransfer(): void {
+    const selectedTasks = this.getSelectedTasks();
+    this.taskToTransfer = selectedTasks;
+    this.showTransferModal = true;
+  }
+
+  bulkStop(): void {
+    this.confirmDialogConfig = {
+      title: 'Confirmer l\'arrêt en masse',
+      message: `Êtes-vous sûr de vouloir arrêter ${this.selectedItems.size} processus ?`,
+      confirmText: 'Arrêter tout',
+      cancelText: 'Annuler',
+      icon: 'stop_circle',
+      iconColor: '#ef4444',
+      theme: 'danger'
+    };
+    this.showConfirmDialog = true;
+  }
+
+  private performBulkAction(action: string, actionLabel: string): void {
+    const count = this.selectedItems.size;
+    
+    // Simulate bulk action
+    setTimeout(() => {
+      this.selectedItems.clear();
+      this.showToast('success', actionLabel, 
+        `${count} processus traité(s) avec succès`);
+    }, 1000);
+  }
+
+  private getSelectedTasks(): Task[] {
+    return Array.from(this.selectedItems).map(id => {
+      const item = this.filteredResults.find(r => r.id === id)!;
+      return {
+        id: item.id,
+        processInstanceId: item.instanceId,
+        processDefinitionId: item.definition,
+        name: `Tâche ${item.definition}`,
+        description: item.definitionDescription,
+        assignee: item.initiator,
+        created: item.startTime,
+        priority: 50,
+        status: 'assigned'
+      };
+    });
+  }
+
+  // ===== MODAL METHODS =====
+  closeTransferModal(): void {
+    this.showTransferModal = false;
+    this.taskToTransfer = null;
+  }
+
+  closeBulkActionsModal(): void {
+    this.showBulkActionsModal = false;
+  }
+
+  onTaskTransferred(assignment: TaskAssignment | TaskAssignment[]): void {
+    const assignments = Array.isArray(assignment) ? assignment : [assignment];
+    
+    assignments.forEach(a => {
+      this.showToast('success', 'Tâche transférée', 
+        `Tâche ${a.taskId} transférée avec succès`);
+    });
+    
+    this.closeTransferModal();
+    this.selectedItems.clear();
+  }
+
+  onBulkActionExecuted(action: string): void {
+    this.performBulkAction(action, `Action ${action}`);
+    this.closeBulkActionsModal();
+  }
+
+  onConfirmDialogResult(confirmed: boolean): void {
+    if (confirmed) {
+      if (this.confirmDialogConfig.title.includes('masse')) {
+        this.performBulkAction('stop', 'Arrêt en masse');
+      } else {
+        // Single item stop
+        this.showToast('success', 'Processus arrêté', 'Le processus a été arrêté avec succès');
+      }
+    }
+    this.showConfirmDialog = false;
+  }
+
+  // ===== UTILITY METHODS =====
+  hideProcessSuggestions(): void {
+    setTimeout(() => {
+      this.showProcessSuggestions = false;
+    }, 200);
+  }
+
+  hideTaskSuggestions(): void {
+    setTimeout(() => {
+      this.showTaskSuggestions = false;
+    }, 200);
+  }
+
+  clearGlobalSearch(): void {
+    this.globalSearchTerm = '';
+    this.performGlobalSearch('');
+  }
+
+  viewInstanceDetails(instanceId: string, event: Event): void {
+    event.preventDefault();
+    this.showToast('info', 'Détails de l\'instance', 
+      `Affichage des détails pour ${instanceId}`);
+  }
+
+  viewUserProfile(username: string, event: Event): void {
+    event.preventDefault();
+    this.showToast('info', 'Profil utilisateur', 
+      `Affichage du profil de ${username}`);
+  }
+
+  highlightMatch(text: string, searchTerm: string): string {
+    if (!searchTerm.trim()) return text;
+    
+    const regex = new RegExp(`(${searchTerm})`, 'gi');
+    return text.replace(regex, '<span class="highlight">$1</span>');
+  }
+
+  formatDateTime(date: Date): string {
     return new Intl.DateTimeFormat('fr-FR', {
       day: '2-digit',
       month: '2-digit',
@@ -631,59 +766,98 @@ export class ProcessDynamicsComponent implements OnInit {
     }).format(date);
   }
 
-  formatDuration(minutes: number): string {
-    const days = Math.floor(minutes / (24 * 60));
-    const hours = Math.floor((minutes % (24 * 60)) / 60);
-    const mins = minutes % 60;
+  formatDate(dateString: string): string {
+    return new Intl.DateTimeFormat('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    }).format(new Date(dateString));
+  }
 
-    if (days > 0) {
-      return `${days}j ${hours}h`;
-    } else if (hours > 0) {
-      return `${hours}h ${mins}min`;
-    } else {
-      return `${mins}min`;
-    }
+  getTimeAgeClass(date: Date): string {
+    const now = new Date();
+    const diffHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+    
+    if (diffHours < 24) return 'recent';
+    if (diffHours < 168) return 'old'; // 1 week
+    return 'very-old';
+  }
+
+  getProcessIcon(type: string): string {
+    const icons: { [key: string]: string } = {
+      'loan': 'account_balance',
+      'account': 'person_add',
+      'kyc': 'verified_user',
+      'card': 'credit_card',
+      'risk': 'security',
+      'generic': 'settings'
+    };
+    return icons[type] || 'settings';
+  }
+
+  getStatusBadgeClass(status: string): string {
+    const classes: { [key: string]: string } = {
+      'active': 'bg-success',
+      'suspended': 'bg-warning',
+      'completed': 'bg-info',
+      'failed': 'bg-danger',
+      'pending': 'bg-secondary'
+    };
+    return classes[status] || 'bg-secondary';
+  }
+
+  getStatusIcon(status: string): string {
+    const icons: { [key: string]: string } = {
+      'active': 'play_circle',
+      'suspended': 'pause_circle',
+      'completed': 'check_circle',
+      'failed': 'error',
+      'pending': 'schedule'
+    };
+    return icons[status] || 'help';
   }
 
   getStatusLabel(status: string): string {
     const labels: { [key: string]: string } = {
-      'active': 'Actif',
-      'suspended': 'Suspendu',
-      'completed': 'Terminé',
-      'failed': 'Échoué'
-    };
-    return labels[status] || status;
-  }
-
-  getTaskStatusLabel(status: string): string {
-    const labels: { [key: string]: string } = {
+      'active': 'En cours',
+      'suspended': 'Suspendue',
       'completed': 'Terminée',
-      'in-progress': 'En cours',
-      'pending': 'En attente',
-      'failed': 'Échouée'
+      'failed': 'Échec',
+      'pending': 'En attente'
     };
     return labels[status] || status;
   }
 
-  getPriorityLabel(priority: string): string {
-    const labels: { [key: string]: string } = {
-      'high': 'Haute',
-      'medium': 'Moyenne',
-      'low': 'Basse'
+  getStatusTooltip(status: string): string {
+    const tooltips: { [key: string]: string } = {
+      'active': 'Processus en cours d\'exécution',
+      'suspended': 'Processus temporairement suspendu',
+      'completed': 'Processus terminé avec succès',
+      'failed': 'Processus terminé en erreur',
+      'pending': 'Processus en attente de traitement'
     };
-    return labels[priority] || priority;
+    return tooltips[status] || '';
   }
 
-  getProcessName(processId: string): string {
-    const process = this.processes.find(p => p.id === processId);
-    return process ? process.name : 'Processus inconnu';
-  }
-
-  showToast(message: string): void {
-    this.successMessage = message;
-    this.showSuccessToast = true;
+  // ===== TOAST METHODS =====
+  private showToast(type: 'success' | 'error' | 'warning' | 'info', title: string, message: string): void {
+    const toast: Toast = {
+      id: Date.now().toString(),
+      title,
+      message,
+      type,
+      duration: 5000
+    };
+    
+    this.toasts.push(toast);
+    
+    // Auto remove after duration
     setTimeout(() => {
-      this.showSuccessToast = false;
-    }, 3000);
+      this.removeToast(toast.id);
+    }, toast.duration);
+  }
+
+  removeToast(id: string): void {
+    this.toasts = this.toasts.filter(toast => toast.id !== id);
   }
 }
