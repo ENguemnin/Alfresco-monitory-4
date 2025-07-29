@@ -21,6 +21,7 @@ export class HeaderComponent implements OnInit {
   notificationCount = 0;
   showNotificationsModal = false;
   showSettingsModal = false;
+  sidebarVisible = true;
 
   userName = 'User';
   userRole = 'Utilisateur';
@@ -73,5 +74,23 @@ export class HeaderComponent implements OnInit {
 
   onCloseSettingsModal(): void {
     this.showSettingsModal = false;
+  }
+
+  toggleSidebar(): void {
+    this.sidebarVisible = !this.sidebarVisible;
+    
+    // Émettre l'événement pour masquer/afficher la sidebar
+    const sidebar = document.querySelector('.sidebar') as HTMLElement;
+    const mainContent = document.querySelector('.main-content') as HTMLElement;
+    
+    if (sidebar && mainContent) {
+      if (this.sidebarVisible) {
+        sidebar.style.transform = 'translateX(0)';
+        mainContent.style.marginLeft = '250px';
+      } else {
+        sidebar.style.transform = 'translateX(-100%)';
+        mainContent.style.marginLeft = '0';
+      }
+    }
   }
 }

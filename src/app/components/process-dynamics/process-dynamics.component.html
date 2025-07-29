@@ -1,753 +1,571 @@
-<br><br> <br><div class="process-dynamics-container">
-  <!-- Page de Filtrage -->
-  <div class="filter-page" [class.hidden]="showProcessView">
-    <div class="filter-header">
-      <h1 class="filter-title">
-        <span class="title-icon"></span>
-        Système de Monitoring APS
+<br><br><br>
+<div class="process-dynamics-container">
+  <!-- Loading Skeleton -->
+  <div *ngIf="loading" class="skeleton-container">
+    <!-- Header Skeleton -->
+    <div class="skeleton-header">
+      <div class="skeleton-title skeleton-animate"></div>
+      <div class="skeleton-subtitle skeleton-animate"></div>
+    </div>
+
+    <!-- Layout Skeleton -->
+    <div class="skeleton-layout">
+      <!-- Main Content Skeleton -->
+      <div class="skeleton-main-content">
+        <div class="skeleton-search-bar skeleton-animate"></div>
+        <div class="skeleton-table">
+          <div class="skeleton-table-header">
+            <div class="skeleton-th skeleton-animate" *ngFor="let col of [1,2,3,4,5,6]"></div>
+          </div>
+          <div class="skeleton-table-row" *ngFor="let row of [1,2,3,4,5,6,7,8]">
+            <div class="skeleton-td skeleton-animate" *ngFor="let col of [1,2,3,4,5,6]"></div>
+          </div>
+        </div>
+        <div class="skeleton-pagination skeleton-animate"></div>
+      </div>
+
+      <!-- Filters Skeleton -->
+      <div class="skeleton-filters">
+        <div class="skeleton-filter-header skeleton-animate"></div>
+        <div class="skeleton-filter-item skeleton-animate" *ngFor="let item of [1,2,3,4,5]"></div>
+        <div class="skeleton-filter-button skeleton-animate"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div *ngIf="!loading" class="main-layout">
+    <!-- Header Section -->
+    <div class="page-header">
+      <h1 class="page-title">
+        <span class="material-icons">dynamic_feed</span>
+        Monitoring Avancé des Processus APS
       </h1>
-      <p class="filter-subtitle">
-        Configurez vos filtres pour analyser les processus Alfresco
+      <p class="page-subtitle">
+        Interface de monitoring intelligente avec filtrage avancé et gestion des tâches
       </p>
     </div>
 
-    <div class="filter-form-container">
-      <form class="filter-form" (ngSubmit)="applyFilters()">
-        <!-- Sélection d'Application -->
-        <div class="form-group">
-          <label class="form-label">
-            <span class="label-icon"></span>
-            Applications
-          </label>
-          <div class="multi-select-container">
-            <div
-              class="select-dropdown"
-              [class.open]="isAppDropdownOpen"
-              (click)="toggleAppDropdown()"
-            >
-              <div class="select-display">
-                <span *ngIf="selectedApps.length === 0" class="placeholder"
-                  >Sélectionner les applications...</span
-                >
-                <div *ngIf="selectedApps.length > 0" class="selected-apps">
-                  <span class="app-badge" *ngFor="let app of selectedApps">
-                    {{ app }}
-                    <button
-                      type="button"
-                      class="remove-app"
-                      (click)="removeApp(app, $event)"
-                    >
-                      ×
-                    </button>
-                  </span>
+    <!-- Two Column Layout -->
+    <div class="row">
+      <!-- Main Content Column (70%) -->
+      <div class="col-lg-8 col-md-7">
+        <div class="main-content-panel">
+          <!-- Welcome State (No Filters Applied) -->
+          <div *ngIf="!filtersApplied" class="welcome-state">
+            <div class="welcome-card">
+              <div class="welcome-icon">
+                <span class="material-icons">search</span>
+              </div>
+              <h3>🔍 Bienvenue dans le monitoring des processus APS</h3>
+              <div class="welcome-content">
+                <p>Utilisez les filtres à droite pour configurer vos critères de recherche :</p>
+                <ul class="welcome-list">
+                  <li><span class="material-icons">check_circle</span> Sélectionnez un processus spécifique</li>
+                  <li><span class="material-icons">check_circle</span> Choisissez les tâches à analyser</li>
+                  <li><span class="material-icons">check_circle</span> Définissez la période temporelle</li>
+                  <li><span class="material-icons">check_circle</span> Appliquez vos filtres pour visualiser les résultats</li>
+                </ul>
+                <div class="welcome-cta">
+                  <span class="material-icons">arrow_forward</span>
+                  <span>Commencez votre analyse dès maintenant ! 👉</span>
                 </div>
               </div>
-              <span class="dropdown-arrow">▼</span>
             </div>
-            <div class="dropdown-options" *ngIf="isAppDropdownOpen">
-              <div class="search-box">
-                <input
-                  type="text"
-                  placeholder="Rechercher une application..."
-                  [(ngModel)]="appSearchTerm"
-                  name="appSearch"
+          </div>
+
+          <!-- Results Section -->
+          <div *ngIf="filtersApplied" class="results-section">
+            <!-- Global Search Bar -->
+            <div class="global-search">
+              <div class="search-container">
+                <span class="material-icons search-icon">search</span>
+                <input 
+                  type="text" 
+                  class="form-control search-input"
+                  placeholder="Rechercher dans les résultats..."
+                  [(ngModel)]="globalSearchTerm"
+                  (input)="onGlobalSearch()"
                 />
-              </div>
-              <div
-                class="option-item"
-                *ngFor="let app of filteredApps"
-                [class.selected]="selectedApps.includes(app.name)"
-                (click)="toggleApp(app.name)"
-              >
-                <div class="option-content">
-                  <span class="option-icon"></span>
-                  <div class="option-text">
-                    <div class="option-name">{{ app.name }}</div>
-                    <div class="option-description">{{ app.description }}</div>
-                  </div>
-                </div>
-                <span class="check-icon" *ngIf="selectedApps.includes(app.name)"
-                  >✓</span
+                <button 
+                  *ngIf="globalSearchTerm" 
+                  class="btn-clear-search"
+                  (click)="clearGlobalSearch()"
                 >
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Sélection de Durée -->
-        <div class="form-group">
-          <label class="form-label">
-            <span class="label-icon"></span>
-            Période d'analyse
-          </label>
-          <div class="duration-selector">
-            <div
-              class="duration-option"
-              *ngFor="let duration of durationOptions"
-              [class.selected]="selectedDuration === duration.value"
-              (click)="selectDuration(duration.value)"
-            >
-              <span class="duration-label">{{ duration.label }}</span>
-              <span class="duration-value">{{ duration.description }}</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Type de Processus -->
-        <div class="form-group">
-          <label class="form-label">
-            <span class="label-icon"></span>
-            Types de processus à analyser
-          </label>
-          <div class="process-types">
-            <div
-              class="process-type-item"
-              *ngFor="let type of processTypes"
-              [class.selected]="selectedProcessTypes.includes(type.value)"
-              (click)="toggleProcessType(type.value)"
-            >
-              <div class="checkbox-container">
-                <div
-                  class="custom-checkbox"
-                  [class.checked]="selectedProcessTypes.includes(type.value)"
-                >
-                  <span class="checkmark">✓</span>
-                </div>
-              </div>
-              <div class="type-content">
-                <span class="type-icon"></span>
-                <div class="type-text">
-                  <div class="type-name">{{ type.name }}</div>
-                  <div class="type-description">{{ type.description }}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Bouton de Soumission -->
-        <div class="form-actions">
-          <button type="submit" class="submit-btn" [class.loading]="isLoading">
-            <span class="btn-content" *ngIf="!isLoading">
-              <span class="btn-icon"></span>
-              <span class="btn-text">Appliquer les Filtres</span>
-            </span>
-            <span class="loading-spinner" *ngIf="isLoading"></span>
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Interface de Gestion des Processus (3 Colonnes) -->
-  <div class="process-view" [class.hidden]="!showProcessView">
-    <div class="process-header">
-      <button class="back-btn" (click)="goBackToFilters()">
-        <span class="back-icon"></span>
-        Retour aux filtres
-      </button>
-      <h2 class="process-title">Gestion des Processus APS</h2>
-      <div class="header-actions">
-        <button class="refresh-btn" (click)="refreshData()">
-          <span class="refresh-icon"></span>
-        </button>
-      </div>
-    </div>
-
-    <div class="three-column-layout">
-      <!-- Colonne 1: Processus -->
-      <div class="column processes-column">
-        <div class="column-header">
-          <h3 class="column-title">
-            <span class="title-icon"></span>
-            Processus
-          </h3>
-          <div class="column-controls">
-            <div class="search-container">
-              <input
-                type="text"
-                class="search-input"
-                placeholder="Rechercher par nom de processus..."
-                [(ngModel)]="processSearchTerm"
-                (input)="filterProcesses()"
-              />
-              <span class="search-icon"></span>
-            </div>
-            <div class="filter-pills">
-              <span
-                class="filter-pill"
-                *ngFor="let filter of quickFilters"
-                [class.active]="activeQuickFilter === filter.value"
-                (click)="setQuickFilter(filter.value)"
-              >
-                {{ filter.label }}
-              </span>
-            </div>
-            <div class="sort-dropdown">
-              <select [(ngModel)]="processSortBy" (change)="sortProcesses()">
-                <option value="newest">Plus récents</option>
-                <option value="oldest">Plus anciens</option>
-                <option value="name">Par nom (A-Z)</option>
-                <option value="status">Par statut</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <div class="column-content">
-          <div class="process-list">
-            <div
-              class="process-card"
-              *ngFor="let process of filteredProcesses"
-              [class.selected]="selectedProcess?.id === process.id"
-              (click)="selectProcess(process)"
-            >
-              <div class="process-header">
-                <div class="process-name">{{ process.name }}</div>
-                <div class="process-status">
-                  <span
-                    class="status-badge"
-                    [class]="'status-' + process.status"
-                  >
-                    {{ getStatusLabel(process.status) }}
-                  </span>
-                </div>
-              </div>
-              <div class="process-meta">
-                <div class="meta-item">
-                  <span class="meta-icon"></span>
-                  <span class="meta-text">{{
-                    formatDate(process.startDate)
-                  }}</span>
-                </div>
-                <div class="meta-item">
-                  <span class="meta-icon"></span>
-                  <span class="meta-text">{{ process.initiator }}</span>
-                </div>
-                <div class="meta-item">
-                  <span class="meta-icon"></span>
-                  <span class="meta-text">{{
-                    formatDuration(process.duration)
-                  }}</span>
-                </div>
-              </div>
-              <div class="process-actions">
-                <button
-                  class="action-btn suspend-btn"
-                  [class.active]="process.status === 'suspended'"
-                  (click)="toggleSuspend(process, $event)"
-                >
-                  <span class="action-icon"></span>
-                  {{
-                    process.status === "suspended" ? "Reprendre" : "Suspendre"
-                  }}
+                  <span class="material-icons">clear</span>
                 </button>
-                <button
-                  class="action-btn stop-btn"
-                  (click)="stopProcess(process, $event)"
-                >
-                  <span class="action-icon"></span>
+              </div>
+              <div class="search-results-count" *ngIf="globalSearchTerm">
+                {{ filteredResults.length }} résultat(s) trouvé(s)
+              </div>
+            </div>
+
+            <!-- Bulk Actions Bar -->
+            <div class="bulk-actions-bar" *ngIf="selectedItems.size > 0">
+              <div class="selection-info">
+                <span class="material-icons">check_circle</span>
+                {{ selectedItems.size }} élément(s) sélectionné(s)
+              </div>
+              <div class="bulk-actions">
+                <button class="btn btn-warning btn-sm" (click)="bulkSuspend()">
+                  <span class="material-icons">pause</span>
+                  Suspendre
+                </button>
+                <button class="btn btn-success btn-sm" (click)="bulkResume()">
+                  <span class="material-icons">play_arrow</span>
+                  Reprendre
+                </button>
+                <button class="btn btn-info btn-sm" (click)="bulkTransfer()">
+                  <span class="material-icons">swap_horiz</span>
+                  Transférer
+                </button>
+                <button class="btn btn-danger btn-sm" (click)="bulkStop()">
+                  <span class="material-icons">stop</span>
                   Arrêter
                 </button>
-                <button
-                  class="action-btn details-btn"
-                  (click)="viewDetails(process, $event)"
-                >
-                  <span class="action-icon"></span>
-                  Détails
-                </button>
               </div>
             </div>
+
+            <!-- Results Table -->
+            <div class="table-container">
+              <table class="table table-striped table-hover">
+                <thead class="table-dark">
+                  <tr>
+                    <th style="width: 5%">
+                      <div class="form-check">
+                        <input 
+                          class="form-check-input" 
+                          type="checkbox" 
+                          [checked]="isAllSelected()"
+                          [indeterminate]="isSomeSelected()"
+                          (change)="toggleSelectAll()"
+                        />
+                      </div>
+                    </th>
+                    <th style="width: 10%" (click)="sortBy('instanceId')" class="sortable">
+                      ID Instance
+                      <span class="material-icons sort-icon">
+                        {{ getSortIcon('instanceId') }}
+                      </span>
+                    </th>
+                    <th style="width: 20%" (click)="sortBy('definition')" class="sortable">
+                      Définition
+                      <span class="material-icons sort-icon">
+                        {{ getSortIcon('definition') }}
+                      </span>
+                    </th>
+                    <th style="width: 15%" (click)="sortBy('startTime')" class="sortable">
+                      Début
+                      <span class="material-icons sort-icon">
+                        {{ getSortIcon('startTime') }}
+                      </span>
+                    </th>
+                    <th style="width: 15%" (click)="sortBy('initiator')" class="sortable">
+                      Initiateur
+                      <span class="material-icons sort-icon">
+                        {{ getSortIcon('initiator') }}
+                      </span>
+                    </th>
+                    <th style="width: 10%" (click)="sortBy('status')" class="sortable">
+                      Statut
+                      <span class="material-icons sort-icon">
+                        {{ getSortIcon('status') }}
+                      </span>
+                    </th>
+                    <th style="width: 25%">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let item of paginatedResults; trackBy: trackByItem" 
+                      [class.table-active]="selectedItems.has(item.id)">
+                    <td>
+                      <div class="form-check">
+                        <input 
+                          class="form-check-input" 
+                          type="checkbox" 
+                          [checked]="selectedItems.has(item.id)"
+                          (change)="toggleSelectItem(item.id)"
+                        />
+                      </div>
+                    </td>
+                    <td>
+                      <a href="#" class="instance-link" (click)="viewInstanceDetails(item.id, $event)">
+                        {{ item.instanceId }}
+                      </a>
+                    </td>
+                    <td>
+                      <div class="definition-cell">
+                        <span class="material-icons process-icon">{{ getProcessIcon(item.type) }}</span>
+                        <span class="definition-name" [title]="item.definitionDescription">
+                          {{ item.definition }}
+                        </span>
+                      </div>
+                    </td>
+                    <td>
+                      <span class="start-time" [class]="getTimeAgeClass(item.startTime)">
+                        {{ formatDateTime(item.startTime) }}
+                      </span>
+                    </td>
+                    <td>
+                      <div class="initiator-cell">
+                        <div class="user-avatar">
+                          <span class="material-icons">account_circle</span>
+                        </div>
+                        <a href="#" class="user-link" (click)="viewUserProfile(item.initiator, $event)">
+                          {{ item.initiator }}
+                        </a>
+                      </div>
+                    </td>
+                    <td>
+                      <span class="badge" [class]="getStatusBadgeClass(item.status)" [title]="getStatusTooltip(item.status)">
+                        <span class="material-icons status-icon">{{ getStatusIcon(item.status) }}</span>
+                        {{ getStatusLabel(item.status) }}
+                      </span>
+                    </td>
+                    <td>
+                      <div class="action-buttons">
+                        <button 
+                          class="btn btn-sm"
+                          [class]="item.status === 'suspended' ? 'btn-success' : 'btn-warning'"
+                          (click)="toggleSuspend(item)"
+                          [title]="item.status === 'suspended' ? 'Reprendre' : 'Suspendre'"
+                        >
+                          <span class="material-icons">
+                            {{ item.status === 'suspended' ? 'play_arrow' : 'pause' }}
+                          </span>
+                        </button>
+                        <button 
+                          class="btn btn-info btn-sm" 
+                          (click)="transferTask(item)"
+                          title="Transférer"
+                        >
+                          <span class="material-icons">swap_horiz</span>
+                        </button>
+                        <button 
+                          class="btn btn-danger btn-sm" 
+                          (click)="stopTask(item)"
+                          title="Arrêter"
+                        >
+                          <span class="material-icons">stop</span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <!-- Empty State -->
+              <div *ngIf="filteredResults.length === 0" class="empty-state">
+                <div class="empty-icon">
+                  <span class="material-icons">search_off</span>
+                </div>
+                <h4>Aucun résultat trouvé</h4>
+                <p>Essayez de modifier vos critères de recherche ou vos filtres.</p>
+              </div>
+            </div>
+
+            <!-- Pagination -->
+            <nav aria-label="Pagination" *ngIf="filteredResults.length > 0">
+              <div class="pagination-container">
+                <div class="pagination-info">
+                  Affichage {{ (currentPage - 1) * pageSize + 1 }} à 
+                  {{ Math.min(currentPage * pageSize, filteredResults.length) }} 
+                  sur {{ filteredResults.length }} résultats
+                </div>
+                
+                <ul class="pagination justify-content-center">
+                  <li class="page-item" [class.disabled]="currentPage === 1">
+                    <a class="page-link" (click)="goToPage(currentPage - 1)" href="#">
+                      <span class="material-icons">chevron_left</span>
+                    </a>
+                  </li>
+                  
+                  <li 
+                    *ngFor="let page of getVisiblePages()" 
+                    class="page-item" 
+                    [class.active]="page === currentPage"
+                  >
+                    <a class="page-link" (click)="goToPage(page)" href="#">{{ page }}</a>
+                  </li>
+                  
+                  <li class="page-item" [class.disabled]="currentPage === totalPages">
+                    <a class="page-link" (click)="goToPage(currentPage + 1)" href="#">
+                      <span class="material-icons">chevron_right</span>
+                    </a>
+                  </li>
+                </ul>
+
+                <div class="page-size-selector">
+                  <select class="form-select form-select-sm" [(ngModel)]="pageSize" (change)="onPageSizeChange()">
+                    <option [value]="5">5 par page</option>
+                    <option [value]="10">10 par page</option>
+                    <option [value]="25">25 par page</option>
+                    <option [value]="50">50 par page</option>
+                    <option [value]="100">100 par page</option>
+                  </select>
+                </div>
+              </div>
+            </nav>
           </div>
         </div>
       </div>
 
-      <!-- Colonne 2: Tâches -->
-      <div class="column tasks-column">
-        <div class="column-header">
-          <h3 class="column-title">
-            <span class="title-icon"></span>
-            <span *ngIf="selectedProcess"
-              >Tâches de {{ selectedProcess.name }}</span
+      <!-- Filters Column (30%) -->
+      <div class="col-lg-4 col-md-5">
+        <div class="filters-panel">
+          <!-- Filters Header -->
+          <div class="filters-header">
+            <h4 class="filters-title">
+              <span class="material-icons">tune</span>
+              Filtres
+            </h4>
+            <button 
+              class="btn btn-outline-secondary btn-sm clear-filters-btn"
+              (click)="clearAllFilters()"
+              [disabled]="!hasActiveFilters()"
             >
-            <span *ngIf="!selectedProcess">Sélectionnez un processus</span>
-          </h3>
-          <div class="task-counter" *ngIf="selectedProcess">
-            {{ getTasks().length }} tâches • {{ getPendingTasksCount() }} en
-            attente
+              <span class="material-icons">clear_all</span>
+              Clear Filters
+            </button>
           </div>
-          <div class="column-controls" *ngIf="selectedProcess">
-            <div class="search-container">
-              <input
-                type="text"
-                class="search-input"
+
+          <!-- Process Filter -->
+          <div class="filter-section">
+            <label class="form-label">
+              <span class="material-icons">account_tree</span>
+              Processus
+            </label>
+            <div class="autocomplete-container">
+              <input 
+                type="text" 
+                class="form-control"
+                placeholder="Rechercher un processus..."
+                [(ngModel)]="processSearchTerm"
+                (input)="onProcessSearch()"
+                (focus)="showProcessSuggestions = true"
+                (blur)="hideProcessSuggestions()"
+              />
+              <span class="material-icons search-icon">search</span>
+              
+              <!-- Process Suggestions Dropdown -->
+              <div class="suggestions-dropdown" *ngIf="showProcessSuggestions && processSuggestions.length > 0">
+                <div 
+                  *ngFor="let process of processSuggestions" 
+                  class="suggestion-item"
+                  (mousedown)="selectProcess(process)"
+                >
+                  <div class="suggestion-content">
+                    <span class="suggestion-name" [innerHTML]="highlightMatch(process.name, processSearchTerm)"></span>
+                    <span class="suggestion-description">{{ process.description }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Task Filter -->
+          <div class="filter-section">
+            <label class="form-label">
+              <span class="material-icons">task</span>
+              Tâches
+              <span class="dependency-note" *ngIf="!selectedProcess">(Sélectionnez d'abord un processus)</span>
+            </label>
+            <div class="autocomplete-container">
+              <input 
+                type="text" 
+                class="form-control"
                 placeholder="Rechercher une tâche..."
                 [(ngModel)]="taskSearchTerm"
-                (input)="filterTasks()"
+                (input)="onTaskSearch()"
+                (focus)="showTaskSuggestions = true"
+                (blur)="hideTaskSuggestions()"
+                [disabled]="!selectedProcess"
               />
-              <span class="search-icon"></span>
-            </div>
-          </div>
-        </div>
-
-        <div class="column-content" *ngIf="selectedProcess">
-          <div class="bulk-actions" *ngIf="selectedTasks.length > 0">
-            <div class="selection-info">
-              {{ selectedTasks.length }} tâche(s) sélectionnée(s)
-            </div>
-            <button class="bulk-transfer-btn" (click)="openBulkTransferModal()">
-              <span class="btn-icon"></span>
-              Transférer la sélection
-            </button>
-          </div>
-
-          <div class="task-list">
-            <div
-              class="task-card"
-              *ngFor="let task of filteredTasks"
-              [class.selected]="selectedTask?.id === task.id"
-              (click)="selectTask(task)"
-            >
-              <div class="task-checkbox">
-                <input
-                  type="checkbox"
-                  [checked]="selectedTasks.includes(task)"
-                  (change)="toggleTaskSelection(task, $event)"
-                  (click)="$event.stopPropagation()"
-                />
-              </div>
-              <div class="task-content">
-                <div class="task-header">
-                  <div class="task-status-indicator">
-                    <span
-                      class="status-dot"
-                      [class]="'status-' + task.status"
-                    ></span>
-                    <span
-                      class="problem-indicator"
-                      *ngIf="task.hasProblems"
-                    ></span>
-                  </div>
-                  <div class="task-name">{{ task.name }}</div>
-                </div>
-                <div class="task-meta">
-                  <div class="meta-item">
-                    <span class="meta-label">Assigné à:</span>
-                    <span class="meta-value">{{
-                      task.assignee || "Non assigné"
-                    }}</span>
-                  </div>
-                  <div class="meta-item">
-                    <span class="meta-label">Créé:</span>
-                    <span class="meta-value">{{
-                      formatDate(task.createdDate)
-                    }}</span>
-                  </div>
-                  <div class="meta-item" *ngIf="task.modifiedDate">
-                    <span class="meta-label">Modifié:</span>
-                    <span class="meta-value">{{
-                      formatDate(task.modifiedDate)
-                    }}</span>
-                  </div>
-                </div>
-                <div
-                  class="task-progress"
-                  *ngIf="task.status === 'in-progress'"
+              <span class="material-icons search-icon">search</span>
+              
+              <!-- Task Suggestions Dropdown -->
+              <div class="suggestions-dropdown" *ngIf="showTaskSuggestions && taskSuggestions.length > 0">
+                <div 
+                  *ngFor="let task of taskSuggestions" 
+                  class="suggestion-item"
+                  (mousedown)="selectTask(task)"
                 >
-                  <div class="progress-bar">
-                    <div
-                      class="progress-fill"
-                      [style.width.%]="task.progress"
-                    ></div>
-                  </div>
-                  <span class="progress-text">{{ task.progress }}%</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="empty-state" *ngIf="!selectedProcess">
-          <div class="empty-icon"></div>
-          <div class="empty-title">Aucun processus sélectionné</div>
-          <div class="empty-description">
-            Sélectionnez un processus dans la colonne de gauche pour voir ses
-            tâches
-          </div>
-        </div>
-      </div>
-
-      <!-- Colonne 3: Détails et Actions -->
-      <div class="column details-column">
-        <div class="column-header">
-          <h3 class="column-title">
-            <span class="title-icon"></span>
-            <span *ngIf="selectedTask">Détails de {{ selectedTask.name }}</span>
-            <span *ngIf="!selectedTask && selectedTasks.length > 0"
-              >Actions groupées ({{ selectedTasks.length }})</span
-            >
-            <span *ngIf="!selectedTask && selectedTasks.length === 0"
-              >Détails et Actions</span
-            >
-          </h3>
-        </div>
-
-        <div class="column-content">
-          <!-- Détails d'une tâche sélectionnée -->
-          <div class="task-details" *ngIf="selectedTask">
-            <div class="details-card">
-              <div class="details-header">
-                <div class="task-title">{{ selectedTask.name }}</div>
-                <div
-                  class="task-status-badge"
-                  [class]="'status-' + selectedTask.status"
-                >
-                  {{ getTaskStatusLabel(selectedTask.status) }}
-                </div>
-              </div>
-
-              <div class="details-section">
-                <h4 class="section-title">Informations générales</h4>
-                <div class="detail-item">
-                  <span class="detail-label">Assigné à:</span>
-                  <span class="detail-value">{{
-                    selectedTask.assignee || "Non assigné"
-                  }}</span>
-                </div>
-                <div class="detail-item">
-                  <span class="detail-label">Créé le:</span>
-                  <span class="detail-value">{{
-                    formatDate(selectedTask.createdDate)
-                  }}</span>
-                </div>
-                <div class="detail-item" *ngIf="selectedTask.dueDate">
-                  <span class="detail-label">Échéance:</span>
-                  <span class="detail-value">{{
-                    formatDate(selectedTask.dueDate)
-                  }}</span>
-                </div>
-                <div class="detail-item">
-                  <span class="detail-label">Priorité:</span>
-                  <span
-                    class="detail-value priority"
-                    [class]="'priority-' + selectedTask.priority"
-                  >
-                    {{ getPriorityLabel(selectedTask.priority) }}
-                  </span>
-                </div>
-                <div class="detail-item">
-                  <span class="detail-label">Catégorie:</span>
-                  <span class="detail-value">{{ selectedTask.category }}</span>
-                </div>
-              </div>
-
-              <div class="details-section" *ngIf="selectedTask.description">
-                <h4 class="section-title">Description</h4>
-                <div class="description-content">
-                  {{ selectedTask.description }}
-                </div>
-              </div>
-
-              <div
-                class="details-section"
-                *ngIf="selectedTask.attachments?.length"
-              >
-                <h4 class="section-title">Pièces jointes</h4>
-                <div class="attachments-list">
-                  <div
-                    class="attachment-item"
-                    *ngFor="let attachment of selectedTask.attachments"
-                  >
-                    <span class="attachment-icon"></span>
-                    <span class="attachment-name">{{ attachment.name }}</span>
-                    <button class="attachment-download"></button>
-                  </div>
-                </div>
-              </div>
-
-              <div class="details-section">
-                <h4 class="section-title">Historique des actions</h4>
-                <div class="history-list">
-                  <div
-                    class="history-item"
-                    *ngFor="let action of selectedTask.history"
-                  >
-                    <div class="history-time">
-                      {{ formatDate(action.date) }}
+                  <div class="suggestion-content">
+                    <span class="suggestion-name" [innerHTML]="highlightMatch(task.name, taskSearchTerm)"></span>
+                    <div class="task-info">
+                      <span class="badge badge-sm" [class]="getStatusBadgeClass(task.status)">
+                        {{ getStatusLabel(task.status) }}
+                      </span>
+                      <span class="instance-count">{{ task.activeInstances }} instances actives</span>
                     </div>
-                    <div class="history-action">{{ action.description }}</div>
-                    <div class="history-user">par {{ action.user }}</div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div class="individual-actions">
-              <button
-                class="transfer-btn primary"
-                (click)="openTransferModal(selectedTask)"
-              >
-                <span class="btn-icon"></span>
-                <span class="btn-text">Transférer cette tâche</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Actions groupées -->
-          <div
-            class="bulk-actions-panel"
-            *ngIf="selectedTasks.length > 0 && !selectedTask"
-          >
-            <div class="bulk-summary">
-              <h4 class="summary-title">
-                Tâches sélectionnées ({{ selectedTasks.length }})
-              </h4>
-              <div class="selected-tasks-list">
-                <div
-                  class="selected-task-item"
-                  *ngFor="let task of selectedTasks"
-                >
+            <!-- Selected Tasks -->
+            <div class="selected-tasks" *ngIf="selectedTasks.length > 0">
+              <div class="selected-tasks-header">
+                <span>Tâches sélectionnées ({{ selectedTasks.length }})</span>
+                <button class="btn-clear-tasks" (click)="clearSelectedTasks()">
+                  <span class="material-icons">clear</span>
+                </button>
+              </div>
+              <div class="selected-task-list">
+                <div *ngFor="let task of selectedTasks" class="selected-task-item">
                   <span class="task-name">{{ task.name }}</span>
-                  <span class="task-process">{{
-                    getProcessName(task.processId)
-                  }}</span>
-                  <span class="task-assignee">{{
-                    task.assignee || "Non assigné"
-                  }}</span>
+                  <button class="btn-remove-task" (click)="removeSelectedTask(task)">
+                    <span class="material-icons">close</span>
+                  </button>
                 </div>
               </div>
             </div>
-
-            <div class="bulk-transfer-section">
-              <button
-                class="bulk-transfer-btn primary"
-                (click)="openBulkTransferModal()"
-              >
-                <span class="btn-icon"></span>
-                <span class="btn-text"
-                  >Transférer la sélection ({{ selectedTasks.length }})</span
-                >
-              </button>
-            </div>
           </div>
 
-          <!-- État vide -->
-          <div
-            class="empty-state"
-            *ngIf="!selectedTask && selectedTasks.length === 0"
-          >
-            <div class="empty-icon"></div>
-            <div class="empty-title">Aucune tâche sélectionnée</div>
-            <div class="empty-description">
-              Sélectionnez une tâche pour voir ses détails ou sélectionnez
-              plusieurs tâches pour les actions groupées
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal de Transfert -->
-  <div
-    class="modal-overlay"
-    *ngIf="showTransferModal"
-    (click)="closeTransferModal()"
-  >
-    <div class="transfer-modal" (click)="$event.stopPropagation()">
-      <div class="modal-header">
-        <h3 class="modal-title">
-          <span class="modal-icon"></span>
-          Transférer
-          {{
-            transferTasks.length === 1
-              ? "la tâche"
-              : transferTasks.length + " tâches"
-          }}
-        </h3>
-        <button class="modal-close" (click)="closeTransferModal()">×</button>
-      </div>
-
-      <div class="modal-content">
-        <div class="transfer-summary" *ngIf="transferTasks.length > 1">
-          <h4 class="summary-title">Tâches à transférer:</h4>
-          <div class="summary-list">
-            <div class="summary-item" *ngFor="let task of transferTasks">
-              <span class="task-name">{{ task.name }}</span>
-              <span class="task-process">{{
-                getProcessName(task.processId)
-              }}</span>
-              <span class="current-assignee">{{
-                task.assignee || "Non assigné"
-              }}</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="transfer-options">
-          <div class="option-tabs">
-            <button
-              class="tab-btn"
-              [class.active]="transferType === 'person'"
-              (click)="setTransferType('person')"
-            >
-              <span class="tab-icon"></span>
-              Personne Spécifique
-            </button>
-            <button
-              class="tab-btn"
-              [class.active]="transferType === 'group'"
-              (click)="setTransferType('group')"
-            >
-              <span class="tab-icon"></span>
-              Groupe d'Utilisateurs
-            </button>
-            <button
-              class="tab-btn"
-              [class.active]="transferType === 'manager'"
-              (click)="setTransferType('manager')"
-            >
-              <span class="tab-icon"></span>
-              Manager
-            </button>
-          </div>
-
-          <div class="transfer-form">
-            <!-- Transfert vers une personne -->
-            <div class="form-section" *ngIf="transferType === 'person'">
-              <div class="autocomplete-container">
-                <input
-                  type="text"
-                  class="autocomplete-input"
-                  placeholder="Rechercher un utilisateur..."
-                  [(ngModel)]="userSearchTerm"
-                  (input)="searchUsers()"
+          <!-- Status Filter -->
+          <div class="filter-section">
+            <label class="form-label">
+              <span class="material-icons">flag</span>
+              Statut des Tâches
+            </label>
+            <div class="status-checkboxes">
+              <div class="form-check" *ngFor="let status of availableStatuses">
+                <input 
+                  class="form-check-input" 
+                  type="checkbox" 
+                  [id]="'status-' + status.value"
+                  [checked]="selectedStatuses.includes(status.value)"
+                  (change)="toggleStatus(status.value)"
                 />
-                <div
-                  class="autocomplete-results"
-                  *ngIf="userSearchResults.length > 0"
-                >
-                  <div
-                    class="user-result"
-                    *ngFor="let user of userSearchResults"
-                    (click)="selectUser(user)"
-                  >
-                    <div class="user-avatar">{{ user.initials }}</div>
-                    <div class="user-info">
-                      <div class="user-name">{{ user.name }}</div>
-                      <div class="user-role">{{ user.role }}</div>
-                    </div>
-                  </div>
-                </div>
+                <label class="form-check-label" [for]="'status-' + status.value">
+                  <span class="badge" [class]="getStatusBadgeClass(status.value)">
+                    <span class="material-icons status-icon">{{ getStatusIcon(status.value) }}</span>
+                    {{ status.label }}
+                  </span>
+                </label>
               </div>
             </div>
+          </div>
 
-            <!-- Transfert vers un groupe -->
-            <div class="form-section" *ngIf="transferType === 'group'">
-              <div class="group-selector">
-                <div
-                  class="group-option"
-                  *ngFor="let group of availableGroups"
-                  [class.selected]="selectedGroup === group"
-                  (click)="selectGroup(group)"
-                >
-                  <div class="group-icon"></div>
-                  <div class="group-info">
-                    <div class="group-name">{{ group.name }}</div>
-                    <div class="group-description">{{ group.description }}</div>
-                    <div class="group-members">
-                      {{ group.memberCount }} membres
-                    </div>
-                  </div>
-                </div>
+          <!-- Date Range Filter -->
+          <div class="filter-section">
+            <label class="form-label">
+              <span class="material-icons">date_range</span>
+              Période Temporelle
+            </label>
+            <div class="date-range-container">
+              <div class="date-input-group">
+                <label class="date-label">Date de début</label>
+                <input 
+                  type="date" 
+                  class="form-control"
+                  [(ngModel)]="startDate"
+                  (change)="validateDateRange()"
+                />
+              </div>
+              <div class="date-input-group">
+                <label class="date-label">Date de fin</label>
+                <input 
+                  type="date" 
+                  class="form-control"
+                  [(ngModel)]="endDate"
+                  (change)="validateDateRange()"
+                  [min]="startDate"
+                />
               </div>
             </div>
-
-            <!-- Transfert vers un manager -->
-            <div class="form-section" *ngIf="transferType === 'manager'">
-              <div class="manager-hierarchy">
-                <div
-                  class="manager-option"
-                  *ngFor="let manager of availableManagers"
-                  [class.selected]="selectedManager === manager"
-                  (click)="selectManager(manager)"
-                >
-                  <div class="manager-avatar">{{ manager.initials }}</div>
-                  <div class="manager-info">
-                    <div class="manager-name">{{ manager.name }}</div>
-                    <div class="manager-title">{{ manager.title }}</div>
-                    <div class="manager-department">
-                      {{ manager.department }}
-                    </div>
-                  </div>
-                  <div class="hierarchy-level">Niveau {{ manager.level }}</div>
-                </div>
-              </div>
+            <div class="date-validation-error" *ngIf="dateRangeError">
+              <span class="material-icons">error</span>
+              {{ dateRangeError }}
             </div>
+          </div>
 
-            <!-- Commentaire optionnel -->
-            <div class="form-section">
-              <label class="form-label">Commentaire (optionnel)</label>
-              <textarea
-                class="comment-textarea"
-                placeholder="Ajoutez un commentaire pour expliquer le transfert..."
-                [(ngModel)]="transferComment"
-              ></textarea>
-            </div>
+          <!-- Apply Filters Button -->
+          <div class="filter-actions">
+            <button 
+              class="btn btn-primary btn-lg w-100 apply-filters-btn"
+              (click)="applyFilters()"
+              [disabled]="!canApplyFilters() || applyingFilters"
+            >
+              <span *ngIf="!applyingFilters" class="material-icons">search</span>
+              <span *ngIf="applyingFilters" class="spinner-border spinner-border-sm" role="status"></span>
+              {{ applyingFilters ? 'Application...' : 'Appliquer les filtres' }}
+            </button>
+          </div>
 
-            <!-- Options de notification -->
-            <div class="form-section">
-              <div class="notification-options">
-                <div class="notification-option">
-                  <input
-                    type="checkbox"
-                    id="notifyAssignee"
-                    [(ngModel)]="notifyAssignee"
-                  />
-                  <label for="notifyAssignee"
-                    >Notifier le nouveau assigné</label
-                  >
-                </div>
-                <div class="notification-option">
-                  <input
-                    type="checkbox"
-                    id="notifyOriginal"
-                    [(ngModel)]="notifyOriginal"
-                  />
-                  <label for="notifyOriginal">Notifier l'assigné actuel</label>
-                </div>
-              </div>
+          <!-- Active Filters Summary -->
+          <div class="active-filters-summary" *ngIf="hasActiveFilters()">
+            <h6>Filtres actifs</h6>
+            <div class="active-filter-tags">
+              <span class="badge bg-primary" *ngIf="selectedProcess">
+                Processus: {{ selectedProcess.name }}
+                <button class="btn-remove-filter" (click)="removeProcessFilter()">
+                  <span class="material-icons">close</span>
+                </button>
+              </span>
+              <span class="badge bg-info" *ngFor="let task of selectedTasks">
+                {{ task.name }}
+                <button class="btn-remove-filter" (click)="removeSelectedTask(task)">
+                  <span class="material-icons">close</span>
+                </button>
+              </span>
+              <span class="badge bg-warning" *ngFor="let status of selectedStatuses">
+                {{ getStatusLabel(status) }}
+                <button class="btn-remove-filter" (click)="toggleStatus(status)">
+                  <span class="material-icons">close</span>
+                </button>
+              </span>
+              <span class="badge bg-success" *ngIf="startDate || endDate">
+                {{ formatDateRange() }}
+                <button class="btn-remove-filter" (click)="clearDateRange()">
+                  <span class="material-icons">close</span>
+                </button>
+              </span>
             </div>
           </div>
         </div>
       </div>
-
-      <div class="modal-actions">
-        <button class="btn-secondary" (click)="closeTransferModal()">
-          Annuler
-        </button>
-        <button
-          class="btn-primary"
-          [disabled]="!canConfirmTransfer()"
-          [class.loading]="isTransferring"
-          (click)="confirmTransfer()"
-        >
-          <span *ngIf="!isTransferring">
-            <span class="btn-icon"></span>
-            Confirmer le transfert
-          </span>
-          <span *ngIf="isTransferring" class="loading-spinner"></span>
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Toast de succès -->
-  <div class="success-toast" *ngIf="showSuccessToast" [@slideInOut]>
-    <div class="toast-content">
-      <span class="toast-icon"></span>
-      <span class="toast-message">{{ successMessage }}</span>
     </div>
   </div>
 </div>
 
+<!-- Modals -->
+<app-task-transfer-modal
+  *ngIf="showTransferModal"
+  [isOpen]="showTransferModal"
+  [taskData]="taskToTransfer"
+  (closeModal)="closeTransferModal()"
+  (taskTransferred)="onTaskTransferred($event)"
+></app-task-transfer-modal>
+
+<app-bulk-actions-modal
+  *ngIf="showBulkActionsModal"
+  [selectedCount]="selectedItems.size"
+  (close)="closeBulkActionsModal()"
+  (actionSelected)="onBulkActionExecuted($event)"
+></app-bulk-actions-modal>
+
+<app-confirm-dialog
+  *ngIf="showConfirmDialog"
+  [title]="confirmDialogConfig.title"
+  [message]="confirmDialogConfig.message"
+  [confirmText]="confirmDialogConfig.confirmText"
+  [cancelText]="confirmDialogConfig.cancelText"
+  [icon]="confirmDialogConfig.icon"
+  [iconColor]="confirmDialogConfig.iconColor"
+  [theme]="confirmDialogConfig.theme"
+  (confirmed)="onConfirmDialogResult($event)"
+></app-confirm-dialog>
+
+<!-- Toast Notifications -->
+<div class="toast-notifications">
+  <app-toast-notification
+    *ngFor="let toast of toasts"
+    [title]="toast.title"
+    [message]="toast.message"
+    [type]="toast.type"
+    [duration]="toast.duration || 5000"
+    [isVisible]="true"
+    (closed)="removeToast(toast.id)"
+  ></app-toast-notification>
+</div>

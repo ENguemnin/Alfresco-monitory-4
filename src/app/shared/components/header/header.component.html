@@ -3,6 +3,19 @@
     class="header-container"
     style="display: flex; align-items: center; justify-content: space-between"
   >
+    <!-- Bouton Toggle Sidebar -->
+    <div class="sidebar-toggle">
+      <button 
+        class="btn-sidebar-toggle" 
+        (click)="toggleSidebar()"
+        [title]="sidebarVisible ? 'Masquer la sidebar' : 'Afficher la sidebar'"
+      >
+        <span class="material-icons">
+          {{ sidebarVisible ? 'menu_open' : 'menu' }}
+        </span>
+      </button>
+    </div>
+
     <div
       class="header-left"
       style="flex: 1; display: flex; justify-content: center"
